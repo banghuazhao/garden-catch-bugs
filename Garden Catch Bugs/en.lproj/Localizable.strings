@@ -1,0 +1,19 @@
+/* 
+  Localizable.strings
+  Garden Catch Bugs
+
+  Created by Banghua Zhao on 5/24/20.
+  Copyright © 2020 Banghua Zhao. All rights reserved.
+*/
+
+
+
+"Back" = "Back";
+"Best Score" = "Best Score";
+"Credits" = "Credits";
+"Help" = "Help";
+"Resume" = "Resume";
+"Score" = "Score";
+"Start" = "Start";
+"Time" = "Time";
+"Your best score is" = "Your best score is"; 

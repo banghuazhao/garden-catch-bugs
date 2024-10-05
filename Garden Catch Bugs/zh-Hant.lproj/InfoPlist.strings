@@ -1,0 +1,10 @@
+/* 
+  InfoPlist.strings
+  Garden Catch Bugs
+
+  Created by Banghua Zhao on 5/24/20.
+  Copyright © 2020 Banghua Zhao. All rights reserved.
+*/
+
+"CFBundleDisplayName" = "抓蟲子";
+"NSUserTrackingUsageDescription" = "該標識符將用於向您投放個性化廣告。";
