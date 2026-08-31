@@ -1,275 +1,271 @@
 //
 //  MainMenuScene.swift
-//  Garden: Catch Bugs
-//
-//  Created by Banghua Zhao on 5/24/20.
-//  Copyright © 2020 Banghua Zhao. All rights reserved.
+//  Garden Catch Bugs
 //
 
-import Foundation
 import Localize_Swift
 import SpriteKit
-import Then
 
-let tapButtonSound = SKAction.playSoundFileNamed("按键.mp3", waitForCompletion: true)
+let tapButtonSound = SKAction.playSoundFileNamed("按键.mp3", waitForCompletion: false)
 
-var beeAnimation: SKAction = {
-    var textures: [SKTexture] = []
-    for i in 1 ... 5 {
-        textures.append(SKTexture(imageNamed: "bee_\(i)"))
-    }
+let beeAnimation: SKAction = makeBugAnimation(prefix: "bee")
+let ladyBugAnimation: SKAction = makeBugAnimation(prefix: "lady_bug")
+let leafBeetleAnimation: SKAction = makeBugAnimation(prefix: "leafbeetle")
+let starBeetleAnimation: SKAction = makeBugAnimation(prefix: "starbeetle")
+let blueBeetleAnimation: SKAction = makeBugAnimation(prefix: "blue_beetle")
+let stinkBugAnimation: SKAction = makeBugAnimation(prefix: "stinkbug")
+
+private func makeBugAnimation(prefix: String) -> SKAction {
+    var textures = (1 ... 5).map { SKTexture(imageNamed: "\(prefix)_\($0)") }
     textures.append(textures[3])
     textures.append(textures[2])
     textures.append(textures[1])
     return SKAction.animate(with: textures, timePerFrame: 0.1)
-}()
+}
 
-var ladyBugAnimation: SKAction = {
-    var textures: [SKTexture] = []
-    for i in 1 ... 5 {
-        textures.append(SKTexture(imageNamed: "lady_bug_\(i)"))
-    }
-    textures.append(textures[3])
-    textures.append(textures[2])
-    textures.append(textures[1])
-    return SKAction.animate(with: textures, timePerFrame: 0.1)
-}()
+private enum MenuPalette {
+    static let ink = SKColor(red: 0.06, green: 0.18, blue: 0.14, alpha: 1)
+    static let forest = SKColor(red: 0.05, green: 0.28, blue: 0.20, alpha: 0.92)
+    static let leaf = SKColor(red: 0.19, green: 0.61, blue: 0.32, alpha: 1)
+    static let mint = SKColor(red: 0.73, green: 0.96, blue: 0.79, alpha: 1)
+    static let cream = SKColor(red: 1.0, green: 0.97, blue: 0.84, alpha: 1)
+    static let amber = SKColor(red: 0.94, green: 0.66, blue: 0.20, alpha: 1)
+}
 
-var leafBeetleAnimation: SKAction = {
-    var textures: [SKTexture] = []
-    for i in 1 ... 5 {
-        textures.append(SKTexture(imageNamed: "leafbeetle_\(i)"))
-    }
-    textures.append(textures[3])
-    textures.append(textures[2])
-    textures.append(textures[1])
-    return SKAction.animate(with: textures, timePerFrame: 0.1)
-}()
-
-var starBeetleAnimation: SKAction = {
-    var textures: [SKTexture] = []
-    for i in 1 ... 5 {
-        textures.append(SKTexture(imageNamed: "starbeetle_\(i)"))
-    }
-    textures.append(textures[3])
-    textures.append(textures[2])
-    textures.append(textures[1])
-    return SKAction.animate(with: textures, timePerFrame: 0.1)
-}()
-
-var blueBeetleAnimation: SKAction = {
-    var textures: [SKTexture] = []
-    for i in 1 ... 5 {
-        textures.append(SKTexture(imageNamed: "blue_beetle_\(i)"))
-    }
-    textures.append(textures[3])
-    textures.append(textures[2])
-    textures.append(textures[1])
-    return SKAction.animate(with: textures, timePerFrame: 0.1)
-}()
-
-var stinkBugAnimation: SKAction = {
-    var textures: [SKTexture] = []
-    for i in 1 ... 5 {
-        textures.append(SKTexture(imageNamed: "stinkbug_\(i)"))
-    }
-    textures.append(textures[3])
-    textures.append(textures[2])
-    textures.append(textures[1])
-    return SKAction.animate(with: textures, timePerFrame: 0.1)
-}()
-
-class MainMenuScene: SKScene {
-    // MARK: - didMove
+final class MainMenuScene: SKScene {
+    private var modalIsVisible = false
 
     override func didMove(to view: SKView) {
-        #if !targetEnvironment(macCatalyst)
-            bannerView.isHidden = false
-        #endif
+        backgroundColor = MenuPalette.ink
         playBackgroundMusic(filename: "首页音乐.mp3", repeatForever: true)
 
         let background = SKSpriteNode(imageNamed: "bg_2048x1536")
         background.position = CGPoint(x: size.width / 2, y: size.height / 2)
+        background.name = "background"
         addChild(background)
 
-        let title = SKSpriteNode(imageNamed: "title")
-        title.position = CGPoint(x: 0, y: 300)
-        title.zPosition = 2
-        title.name = "title"
-        background.addChild(title)
-
-        let startButton = SKSpriteNode(imageNamed: "button")
-        startButton.position = CGPoint(x: -500, y: 80)
-        startButton.zPosition = 2
-        startButton.name = "startButton"
-        background.addChild(startButton)
-        let startLabel = SKLabelNode(fontNamed: "Helvetica-Bold").then { node in
-            node.text = "Start".localized()
-            node.fontColor = SKColor.black
-            node.fontSize = 50
-            node.zPosition = 100
-            node.horizontalAlignmentMode = .center
-            node.verticalAlignmentMode = .center
-            node.position = CGPoint(x: 0, y: 0)
-        }
-        startButton.addChild(startLabel)
-
-        let helpButton = SKSpriteNode(imageNamed: "button")
-        helpButton.position = CGPoint(x: -500, y: -70)
-        helpButton.zPosition = 2
-        helpButton.name = "helpButton"
-        background.addChild(helpButton)
-
-        let helpLabel = SKLabelNode(fontNamed: "Helvetica-Bold").then { node in
-            node.text = "Help".localized()
-            node.fontColor = SKColor.black
-            node.fontSize = 50
-            node.zPosition = 100
-            node.horizontalAlignmentMode = .center
-            node.verticalAlignmentMode = .center
-            node.position = CGPoint(x: 0, y: 0)
-        }
-
-        helpButton.addChild(helpLabel)
-
-        let creditsButton = SKSpriteNode(imageNamed: "button")
-        creditsButton.position = CGPoint(x: -500, y: -220)
-        creditsButton.zPosition = 2
-        creditsButton.name = "creditsButton"
-        background.addChild(creditsButton)
-
-        let creditsLabel = SKLabelNode(fontNamed: "Helvetica-Bold").then { node in
-            node.text = "More Apps".localized()
-            node.fontColor = SKColor.black
-            node.fontSize = 50
-            node.zPosition = 100
-            node.horizontalAlignmentMode = .center
-            node.verticalAlignmentMode = .center
-            node.position = CGPoint(x: 0, y: 0)
-        }
-
-        creditsButton.addChild(creditsLabel)
-
-        let bee = SKSpriteNode(imageNamed: "bee_1")
-        bee.position = CGPoint(x: 90, y: 40)
-        bee.zPosition = 2
-        bee.name = "bee"
-        bee.run(SKAction.repeatForever(beeAnimation))
-        background.addChild(bee)
-
-        let ladyBug = SKSpriteNode(imageNamed: "lady_bug_1")
-        ladyBug.position = CGPoint(x: 370, y: 40)
-        ladyBug.zPosition = 2
-        ladyBug.name = "ladyBug"
-        ladyBug.run(SKAction.repeatForever(ladyBugAnimation))
-        background.addChild(ladyBug)
-
-        let leafBeetle = SKSpriteNode(imageNamed: "leafbeetle_1")
-        leafBeetle.position = CGPoint(x: 650, y: 40)
-        leafBeetle.zPosition = 2
-        leafBeetle.name = "leafBeetle"
-        leafBeetle.run(SKAction.repeatForever(leafBeetleAnimation))
-        background.addChild(leafBeetle)
-
-        let starBeetle = SKSpriteNode(imageNamed: "starbeetle_1")
-        starBeetle.position = CGPoint(x: 90, y: -200)
-        starBeetle.zPosition = 2
-        starBeetle.name = "starBeetle"
-        starBeetle.run(SKAction.repeatForever(starBeetleAnimation))
-        background.addChild(starBeetle)
-
-        let blueBeetle = SKSpriteNode(imageNamed: "blue_beetle_1")
-        blueBeetle.position = CGPoint(x: 370, y: -200)
-        blueBeetle.zPosition = 2
-        blueBeetle.name = "blueBeetle"
-        blueBeetle.run(SKAction.repeatForever(blueBeetleAnimation))
-        background.addChild(blueBeetle)
-
-        let stinkBug = SKSpriteNode(imageNamed: "stinkbug_1")
-        stinkBug.position = CGPoint(x: 650, y: -200)
-        stinkBug.zPosition = 2
-        stinkBug.name = "stinkBug"
-        stinkBug.run(SKAction.repeatForever(stinkBugAnimation))
-        background.addChild(stinkBug)
+        buildMenu(in: background)
+        addShowcaseBugs(to: background)
     }
 
-    // MARK: - touchesBegan
-
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
-        guard let touch = touches.first else { return }
-        let touchLocation = touch.location(in: self)
-        let nodesAtPoint = nodes(at: touchLocation)
-        for node in nodesAtPoint {
-            if node.name == "startButton" {
-                backgroundMusicPlayer.stop()
-                run(tapButtonSound)
-                let gameScene = GameScene()
-                gameScene.size = size
-                gameScene.scaleMode = .aspectFill
-                view?.presentScene(gameScene)
-            } else if node.name == "helpButton" {
-                run(tapButtonSound)
-                let helpMenu = SKSpriteNode(imageNamed: "helpMenu")
-                helpMenu.zPosition = 200
-                helpMenu.position = CGPoint(
-                    x: size.width / 2,
-                    y: size.height / 2 + 20)
-                helpMenu.name = "helpMenu"
-                addChild(helpMenu)
-                let backButton = SKSpriteNode(imageNamed: "button")
-                backButton.position = CGPoint(
-                    x: 0, y: -300)
-                backButton.zPosition = 2
-                backButton.name = "backButton"
-                helpMenu.addChild(backButton)
+        guard let touch = touches.first,
+              let control = namedControl(at: touch.location(in: self)) else { return }
 
-                let backLabel = SKLabelNode(fontNamed: "Helvetica-Bold").then { node in
-                    node.text = "Back".localized()
-                    node.fontColor = SKColor.black
-                    node.fontSize = 50
-                    node.zPosition = 100
-                    node.horizontalAlignmentMode = .center
-                    node.verticalAlignmentMode = .center
-                    node.position = CGPoint(x: 0, y: 0)
+        if modalIsVisible {
+            guard control.name == "backButton" else { return }
+            animateButtonPress(control)
+            run(tapButtonSound)
+            hideHelp()
+            return
+        }
+
+        switch control.name {
+        case "startButton":
+            animateButtonPress(control)
+            run(tapButtonSound)
+            backgroundMusicPlayer.stop()
+            let gameScene = GameScene(size: size)
+            gameScene.scaleMode = .aspectFill
+            view?.presentScene(gameScene, transition: .crossFade(withDuration: 0.26))
+        case "helpButton":
+            animateButtonPress(control)
+            run(tapButtonSound)
+            showHelp()
+        case "creditsButton":
+            animateButtonPress(control)
+            run(tapButtonSound)
+            view?.window?.rootViewController?.present(MoreAppsViewController(), animated: true)
+        default:
+            break
+        }
+    }
+}
+
+// MARK: - Menu layout
+
+extension MainMenuScene {
+    private func buildMenu(in background: SKSpriteNode) {
+        let panel = SKShapeNode(rectOf: CGSize(width: 570, height: 680), cornerRadius: 48)
+        panel.position = CGPoint(x: -590, y: -62)
+        panel.fillColor = MenuPalette.forest
+        panel.strokeColor = MenuPalette.mint.withAlphaComponent(0.50)
+        panel.lineWidth = 4
+        panel.zPosition = 1
+        panel.setScale(0.92)
+        background.addChild(panel)
+        panel.run(.sequence([
+            .wait(forDuration: 0.08),
+            .scale(to: 1.02, duration: 0.26),
+            .scale(to: 1, duration: 0.16),
+        ]))
+
+        let title = SKSpriteNode(imageNamed: "title")
+        title.position = CGPoint(x: 0, y: 378)
+        title.zPosition = 4
+        title.setScale(0.80)
+        background.addChild(title)
+        title.run(.repeatForever(.sequence([
+            .moveBy(x: 0, y: 13, duration: 1.8),
+            .moveBy(x: 0, y: -13, duration: 1.8),
+        ])), withKey: "titleFloat")
+
+        let start = makeMenuButton(
+            name: "startButton",
+            title: "Start".localized(),
+            color: MenuPalette.leaf,
+            position: CGPoint(x: -590, y: 92))
+        let help = makeMenuButton(
+            name: "helpButton",
+            title: "Help".localized(),
+            color: MenuPalette.amber,
+            position: CGPoint(x: -590, y: -58))
+        let moreApps = makeMenuButton(
+            name: "creditsButton",
+            title: "More Apps".localized(),
+            color: MenuPalette.ink,
+            position: CGPoint(x: -590, y: -208))
+        [start, help, moreApps].forEach { button in
+            button.zPosition = 3
+            background.addChild(button)
+        }
+    }
+
+    private func makeMenuButton(name: String, title: String, color: SKColor, position: CGPoint) -> SKShapeNode {
+        let button = SKShapeNode(rectOf: CGSize(width: 420, height: 104), cornerRadius: 28)
+        button.name = name
+        button.position = position
+        button.fillColor = color
+        button.strokeColor = MenuPalette.cream.withAlphaComponent(0.7)
+        button.lineWidth = 3
+
+        let label = SKLabelNode(fontNamed: "AvenirNext-Heavy")
+        label.text = title
+        label.fontColor = MenuPalette.cream
+        label.fontSize = 44
+        label.verticalAlignmentMode = .center
+        label.horizontalAlignmentMode = .center
+        label.position = .zero
+        label.zPosition = 1
+        button.addChild(label)
+        return button
+    }
+
+    private func addShowcaseBugs(to background: SKSpriteNode) {
+        let bugs: [(String, SKAction, CGPoint, CGFloat, TimeInterval)] = [
+            ("bee_1", beeAnimation, CGPoint(x: 155, y: 88), 0.88, 0),
+            ("lady_bug_1", ladyBugAnimation, CGPoint(x: 470, y: 105), 0.84, 0.25),
+            ("leafbeetle_1", leafBeetleAnimation, CGPoint(x: 750, y: 78), 0.92, 0.45),
+            ("starbeetle_1", starBeetleAnimation, CGPoint(x: 150, y: -220), 0.88, 0.68),
+            ("blue_beetle_1", blueBeetleAnimation, CGPoint(x: 455, y: -224), 0.86, 0.87),
+            ("stinkbug_1", stinkBugAnimation, CGPoint(x: 750, y: -218), 0.72, 1.05),
+        ]
+
+        for (imageName, animation, position, scale, delay) in bugs {
+            let bug = SKSpriteNode(imageNamed: imageName)
+            bug.position = position
+            bug.zPosition = 2
+            bug.setScale(scale)
+            bug.alpha = 0
+            background.addChild(bug)
+            bug.run(.repeatForever(animation), withKey: "flutter")
+            bug.run(.sequence([
+                .wait(forDuration: delay),
+                .group([
+                    .fadeIn(withDuration: 0.24),
+                    .sequence([
+                        .scale(to: scale * 1.08, duration: 0.18),
+                        .scale(to: scale, duration: 0.16),
+                    ]),
+                ]),
+            ]))
+            bug.run(.repeatForever(.sequence([
+                .wait(forDuration: delay),
+                .moveBy(x: 0, y: 14, duration: 1.25),
+                .moveBy(x: 0, y: -14, duration: 1.25),
+            ])), withKey: "hover")
+        }
+    }
+}
+
+// MARK: - Help modal
+
+extension MainMenuScene {
+    private func showHelp() {
+        guard !modalIsVisible else { return }
+        modalIsVisible = true
+
+        let overlay = SKNode()
+        overlay.name = "helpOverlay"
+        overlay.zPosition = 100
+        addChild(overlay)
+
+        let dimmer = SKShapeNode(rectOf: size)
+        dimmer.position = CGPoint(x: size.width / 2, y: size.height / 2)
+        dimmer.fillColor = SKColor.black.withAlphaComponent(0.55)
+        dimmer.strokeColor = .clear
+        dimmer.zPosition = 0
+        overlay.addChild(dimmer)
+
+        let helpCard = SKSpriteNode(imageNamed: "helpMenu")
+        helpCard.position = CGPoint(x: size.width / 2, y: size.height / 2 + 30)
+        helpCard.name = "helpCard"
+        helpCard.zPosition = 1
+        helpCard.setScale(0.76)
+        overlay.addChild(helpCard)
+
+        let back = makeMenuButton(
+            name: "backButton",
+            title: "Back".localized(),
+            color: MenuPalette.leaf,
+            position: CGPoint(x: 0, y: -370))
+        back.zPosition = 1
+        back.setScale(0.78)
+        helpCard.addChild(back)
+
+        helpCard.run(.sequence([
+            .scale(to: 1.04, duration: 0.18),
+            .scale(to: 1, duration: 0.14),
+        ]), withKey: "enter")
+    }
+
+    private func hideHelp() {
+        guard let overlay = childNode(withName: "helpOverlay") else {
+            modalIsVisible = false
+            return
+        }
+        // Stay modal until the overlay is gone, so the fade-out can't leak a tap
+        // through to the menu buttons underneath.
+        overlay.name = nil
+        overlay.run(.sequence([
+            .group([
+                .fadeOut(withDuration: 0.16),
+                .scale(to: 1.04, duration: 0.16),
+            ]),
+            .removeFromParent(),
+        ])) { [weak self] in
+            self?.modalIsVisible = false
+        }
+    }
+
+    private func namedControl(at location: CGPoint) -> SKNode? {
+        for node in nodes(at: location) {
+            var candidate: SKNode? = node
+            while let current = candidate {
+                if ["startButton", "helpButton", "creditsButton", "backButton"].contains(current.name ?? "") {
+                    return current
                 }
-                backButton.addChild(backLabel)
-            } else if node.name == "backButton" {
-                run(tapButtonSound)
-                enumerateChildNodes(withName: "helpMenu") { node, _ in
-                    node.removeFromParent()
-                }
-                enumerateChildNodes(withName: "creditMenu") { node, _ in
-                    node.removeFromParent()
-                }
-            } else if node.name == "creditsButton" {
-                run(tapButtonSound)
-                view?.window?.rootViewController?.present(MoreAppsViewController(), animated: true, completion: nil)
-//                let helpMenu = SKSpriteNode(imageNamed: "creditMenu")
-//                helpMenu.zPosition = 200
-//                helpMenu.position = CGPoint(
-//                    x: size.width / 2,
-//                    y: size.height / 2)
-//                helpMenu.name = "creditMenu"
-//                addChild(helpMenu)
-//
-//                let backButton = SKSpriteNode(imageNamed: "button")
-//                backButton.position = CGPoint(
-//                    x: 0, y: -150)
-//                backButton.zPosition = 2
-//                backButton.name = "backButton"
-//                helpMenu.addChild(backButton)
-//
-//                let backLabel = SKLabelNode(fontNamed: "Helvetica-Bold").then { node in
-//                    node.text = "Back".localized()
-//                    node.fontColor = SKColor.black
-//                    node.fontSize = 50
-//                    node.zPosition = 100
-//                    node.horizontalAlignmentMode = .center
-//                    node.verticalAlignmentMode = .center
-//                    node.position = CGPoint(x: 0, y: 0)
-//                }
-//                backButton.addChild(backLabel)
+                candidate = current.parent
             }
         }
+        return nil
+    }
+
+    private func animateButtonPress(_ button: SKNode) {
+        button.removeAction(forKey: "press")
+        button.run(.sequence([
+            .scale(to: 0.93, duration: 0.05),
+            .scale(to: 1, duration: 0.14),
+        ]), withKey: "press")
     }
 }

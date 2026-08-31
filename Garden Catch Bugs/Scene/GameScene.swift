@@ -2,718 +2,814 @@
 //  GameScene.swift
 //  Garden Catch Bugs
 //
-//  Created by Banghua Zhao on 5/24/20.
-//  Copyright © 2020 Banghua Zhao. All rights reserved.
-//
 
 import Localize_Swift
 import SpriteKit
-import Then
+import UIKit
 
-enum GameState {
-    case play, pause
+private enum GameState {
+    case playing
+    case paused
 }
 
-class GameScene: SKScene {
-    var gameState: GameState = .play
+private enum BugKind: String, CaseIterable {
+    case bee
+    case ladyBug = "lady_bug"
+    case leafBeetle = "leafbeetle"
+    case blueBeetle = "blue_beetle"
+    case starBeetle = "starbeetle"
+    case stinkBug = "stinkbug"
 
-    // music
-    let catchBadBugSound: SKAction = SKAction.playSoundFileNamed(
-        "抓到害虫.mp3", waitForCompletion: false)
-    let catchGoodBugSound: SKAction = SKAction.playSoundFileNamed(
-        "抓到益虫.mp3", waitForCompletion: false)
-    let tapSound = SKAction.playSoundFileNamed("按键.mp3", waitForCompletion: true)
+    var textureName: String {
+        switch self {
+        case .bee: return "bee_1"
+        case .ladyBug: return "lady_bug_1"
+        case .leafBeetle: return "leafbeetle_1"
+        case .blueBeetle: return "blue_beetle_1"
+        case .starBeetle: return "starbeetle_1"
+        case .stinkBug: return "stinkbug_1"
+        }
+    }
 
-    // playble rect
-    var playableRect: CGRect!
-    var topLimit: CGFloat!
-    var bottomLimit: CGFloat!
+    var animation: SKAction {
+        switch self {
+        case .bee: return beeAnimation
+        case .ladyBug: return ladyBugAnimation
+        case .leafBeetle: return leafBeetleAnimation
+        case .blueBeetle: return blueBeetleAnimation
+        case .starBeetle: return starBeetleAnimation
+        case .stinkBug: return stinkBugAnimation
+        }
+    }
 
-    // Touch
-    var activeSlicePoints = [CGPoint]()
+    var points: Int {
+        switch self {
+        case .bee: return 3
+        case .ladyBug: return 2
+        case .leafBeetle: return 1
+        case .blueBeetle: return -1
+        case .starBeetle: return -2
+        case .stinkBug: return -3
+        }
+    }
 
-    // character
+    var isFriendly: Bool { points > 0 }
 
-    var gameLayerNode = SKNode()
+    var feedbackColor: SKColor {
+        isFriendly
+            ? SKColor(red: 0.24, green: 0.79, blue: 0.40, alpha: 1)
+            : SKColor(red: 0.94, green: 0.29, blue: 0.32, alpha: 1)
+    }
+}
 
-    lazy var netNode = SKSpriteNode(imageNamed: "net").then({ node in
-        node.zPosition = 98
+private enum GardenPalette {
+    static let ink = SKColor(red: 0.06, green: 0.18, blue: 0.14, alpha: 1)
+    static let forest = SKColor(red: 0.05, green: 0.28, blue: 0.20, alpha: 0.92)
+    /// Opaque variant for modal panels, so live gameplay can't read through them.
+    static let forestSolid = SKColor(red: 0.04, green: 0.22, blue: 0.16, alpha: 1)
+    static let leaf = SKColor(red: 0.19, green: 0.61, blue: 0.32, alpha: 1)
+    static let mint = SKColor(red: 0.73, green: 0.96, blue: 0.79, alpha: 1)
+    static let cream = SKColor(red: 1.0, green: 0.97, blue: 0.84, alpha: 1)
+    static let coral = SKColor(red: 0.92, green: 0.30, blue: 0.29, alpha: 1)
+}
+
+final class GameScene: SKScene {
+    private let catchBadBugSound = SKAction.playSoundFileNamed("抓到害虫.mp3", waitForCompletion: false)
+    private let catchGoodBugSound = SKAction.playSoundFileNamed("抓到益虫.mp3", waitForCompletion: false)
+    private let tapSound = SKAction.playSoundFileNamed("按键.mp3", waitForCompletion: false)
+
+    private var gameState: GameState = .playing
+    private var playableRect = CGRect.zero
+    private var topLimit: CGFloat = 0
+    private var bottomLimit: CGFloat = 0
+    private var lastSlicePoint: CGPoint?
+    private var notificationObservers = [NSObjectProtocol]()
+    private var gameEnded = false
+    private var lastUpdateTime: TimeInterval = 0
+    private var createWave = Array(repeating: true, count: 5)
+    private var isTimerUrgent = false
+
+    private let playfieldNode = SKNode()
+    private let gameLayerNode = SKNode()
+    private let effectsNode = SKNode()
+    private let hudNode = SKNode()
+    private var pauseOverlay: SKNode?
+    private var timeBarFill: SKShapeNode?
+
+    /// Rendered size of a bug sprite, fixed so spawn margins can be trusted.
+    fileprivate static let bugScale: CGFloat = 0.6
+
+    private var startingBest = 0
+    private let maxTime: TimeInterval = 60
+    private var timeRemaining: TimeInterval = 60 {
+        didSet { updateTimerUI() }
+    }
+
+    private var score = 0 {
+        didSet { updateScoreUI() }
+    }
+
+    private lazy var netNode: SKSpriteNode = {
+        let node = SKSpriteNode(imageNamed: "net")
+        node.zPosition = 4
         node.setScale(0.3)
-    })
+        return node
+    }()
 
-    // score
-
-    var score: Int = 0 {
-        didSet {
-            if score > newbestScore {
-                newbestScore = score
-            }
-            scoreLabel.text = "\("Score".localized()): \(score)"
-            if let bestScore = UserDefaults.standard.value(forKey: Constants.UserDefaultsKeys.BEST_SCORE) as? Int {
-                if score > bestScore {
-                    bestScoreLabel.text = "\("Best Score".localized()): \(score)"
-                    UserDefaults.standard.set(score, forKey: Constants.UserDefaultsKeys.BEST_SCORE)
-                }
-            } else {
-                bestScoreLabel.text = "\("Best Score".localized()): \(score)"
-                UserDefaults.standard.set(score, forKey: Constants.UserDefaultsKeys.BEST_SCORE)
-            }
-        }
-    }
-
-    var newbestScore: Int = 0
-
-    lazy var scoreLabel = SKLabelNode(fontNamed: "Helvetica-Bold").then { node in
-        node.text = "\("Score".localized()): 0"
-        node.fontColor = SKColor.black
-        node.fontSize = 54
-        node.zPosition = 100
-        node.horizontalAlignmentMode = .left
-        node.verticalAlignmentMode = .top
-    }
-
-    lazy var bestScoreLabel = SKLabelNode(fontNamed: "Helvetica-Bold").then { node in
-        if let bestScore = UserDefaults.standard.value(forKey: Constants.UserDefaultsKeys.BEST_SCORE) as? Int {
-            node.text = "\("Best Score".localized()): \(bestScore)"
-        } else {
-            UserDefaults.standard.set(0, forKey: Constants.UserDefaultsKeys.BEST_SCORE)
-            node.text = "\("Best Score".localized()): 0"
-        }
-        node.fontColor = SKColor.black
-        node.fontSize = 54
-        node.zPosition = 100
-        node.horizontalAlignmentMode = .center
-        node.verticalAlignmentMode = .top
-    }
-
-    // Time
-
-    var isResume = false
-    var gameEnded = false
-    var lastUpdateTime: TimeInterval = 0.0
-    var dt: TimeInterval = 0.0
-
-    var maxTime: TimeInterval = 60.0
-
-    var timeRemind: TimeInterval = 60.0 {
-        didSet {
-            timeLabel.text = "\("Time".localized()): \(String(format: "%.1f", timeRemind)) / \(maxTime)"
-        }
-    }
-
-    lazy var timeLabel = SKLabelNode(fontNamed: "Helvetica-Bold").then { node in
-        node.text = "\("Time".localized()): \(String(format: "%.1f", timeRemind)) / \(maxTime)"
-        node.fontColor = SKColor.black
-        node.fontSize = 54
-        node.zPosition = 100
-        node.horizontalAlignmentMode = .right
-        node.verticalAlignmentMode = .top
-    }
-
-    var createWave: [Bool] = [true, true, true, true, true]
-
-    // MARK: - didMove
+    private let scoreLabel = GameScene.makeHUDLabel(alignment: .center)
+    private let bestScoreLabel = GameScene.makeHUDLabel(alignment: .center)
+    private let timeLabel = GameScene.makeHUDLabel(alignment: .center)
 
     override func didMove(to view: SKView) {
         addObservers()
-        #if !targetEnvironment(macCatalyst)
-            bannerView.isHidden = true
-        #endif
-        gameState = .play
+        backgroundColor = GardenPalette.ink
+        gameState = .playing
+        startingBest = UserDefaults.standard.object(forKey: Constants.UserDefaultsKeys.BEST_SCORE) as? Int ?? 0
         playBackgroundMusic(filename: "游戏音乐.mp3", repeatForever: true)
-
         createWorld()
-        createLabels()
-        spawnBugs1()
+        createHUD()
+        startSpawningBugs()
     }
 
-    // MARK: - update
+    override func willMove(from view: SKView) {
+        notificationObservers.forEach(NotificationCenter.default.removeObserver)
+        notificationObservers.removeAll()
+    }
 
     override func update(_ currentTime: TimeInterval) {
-        if gameState == .pause {
-            if !gameLayerNode.isPaused {
-                physicsWorld.speed = 0
-                gameLayerNode.isPaused = true
-                gameState = .pause
-                print("paused!")
-                let pauseMenu = SKSpriteNode(imageNamed: "pauseMenu")
-                pauseMenu.zPosition = 200
-                pauseMenu.position = CGPoint(
-                    x: size.width / 2,
-                    y: (bottomLimit + topLimit) / 2 + 50)
-                pauseMenu.name = "pauseMenu"
-                addChild(pauseMenu)
+        guard gameState == .playing, !gameEnded else { return }
 
-                let resumeButton = SKSpriteNode(imageNamed: "button")
-                resumeButton.position = CGPoint(
-                    x: 0, y: 0)
-                resumeButton.zPosition = 2
-                resumeButton.name = "resumeButton"
-                pauseMenu.addChild(resumeButton)
+        let deltaTime = lastUpdateTime > 0 ? currentTime - lastUpdateTime : 0
+        lastUpdateTime = currentTime
+        timeRemaining -= deltaTime
 
-                let resumeLabel = SKLabelNode(fontNamed: "Helvetica-Bold").then { node in
-                    node.text = "Resume".localized()
-                    node.fontColor = SKColor.black
-                    node.fontSize = 50
-                    node.zPosition = 100
-                    node.horizontalAlignmentMode = .center
-                    node.verticalAlignmentMode = .center
-                    node.position = CGPoint(x: 0, y: 0)
-                }
-
-                resumeButton.addChild(resumeLabel)
-
-                let backButton = SKSpriteNode(imageNamed: "button")
-                backButton.position = CGPoint(
-                    x: 0, y: -180)
-                backButton.zPosition = 2
-                backButton.name = "backButton"
-                pauseMenu.addChild(backButton)
-
-                let backLabel = SKLabelNode(fontNamed: "Helvetica-Bold").then { node in
-                    node.text = "Back".localized()
-                    node.fontColor = SKColor.black
-                    node.fontSize = 50
-                    node.zPosition = 100
-                    node.horizontalAlignmentMode = .center
-                    node.verticalAlignmentMode = .center
-                    node.position = CGPoint(x: 0, y: 0)
-                }
-                backButton.addChild(backLabel)
-            }
+        if timeRemaining <= 0 {
+            timeUp()
             return
         }
 
-        if isResume {
-            lastUpdateTime = currentTime
-            isResume = false
-        }
-
-        // Called before each frame is rendered
-        dt = lastUpdateTime > 0 ? currentTime - lastUpdateTime : 0
-        timeRemind -= dt
-        lastUpdateTime = currentTime
-
-        if timeRemind <= 0.0 {
-            timeUp()
-        }
-
-        // spawn wave
-
-        for (i, waveTime) in [10, 20, 30, 40, 50].enumerated() {
-            if timeRemind <= TimeInterval(waveTime) && createWave[i] {
-                createWave[i] = false
+        for (index, waveTime) in [50, 40, 30, 20, 10].enumerated() {
+            if timeRemaining <= TimeInterval(waveTime), createWave[index] {
+                createWave[index] = false
                 spawnBugWave()
             }
         }
     }
 }
 
-// MARK: - touch related
+// MARK: - Input
 
 extension GameScene {
-    // MARK: - touchesBegan
-
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
-        activeSlicePoints.removeAll(keepingCapacity: true)
+        guard let touch = touches.first else { return }
+        let location = touch.location(in: self)
 
-        guard let vTouch = touches.first else { return }
-        let touchLocation = vTouch.location(in: self)
-        activeSlicePoints.append(touchLocation)
+        if handleControlTap(at: location) { return }
+        guard gameState == .playing, !gameEnded else { return }
 
-        let nodesAtPoint = nodes(at: touchLocation)
-
-        for node in nodesAtPoint {
-            if node.name == "pauseButton" {
-                if !gameLayerNode.isPaused {
-                    physicsWorld.speed = 0
-                    gameLayerNode.isPaused = true
-                    gameState = .pause
-                    run(tapSound)
-                    print("paused!")
-                    let pauseMenu = SKSpriteNode(imageNamed: "pauseMenu")
-                    pauseMenu.zPosition = 200
-                    pauseMenu.position = CGPoint(
-                        x: size.width / 2,
-                        y: (bottomLimit + topLimit) / 2 + 50)
-                    pauseMenu.name = "pauseMenu"
-                    addChild(pauseMenu)
-
-                    let resumeButton = SKSpriteNode(imageNamed: "button")
-                    resumeButton.position = CGPoint(
-                        x: 0, y: 0)
-                    resumeButton.zPosition = 2
-                    resumeButton.name = "resumeButton"
-                    pauseMenu.addChild(resumeButton)
-
-                    let resumeLabel = SKLabelNode(fontNamed: "Helvetica-Bold").then { node in
-                        node.text = "Resume".localized()
-                        node.fontColor = SKColor.black
-                        node.fontSize = 50
-                        node.zPosition = 100
-                        node.horizontalAlignmentMode = .center
-                        node.verticalAlignmentMode = .center
-                        node.position = CGPoint(x: 0, y: 0)
-                    }
-
-                    resumeButton.addChild(resumeLabel)
-
-                    let backButton = SKSpriteNode(imageNamed: "button")
-                    backButton.position = CGPoint(
-                        x: 0, y: -180)
-                    backButton.zPosition = 2
-                    backButton.name = "backButton"
-                    pauseMenu.addChild(backButton)
-
-                    let backLabel = SKLabelNode(fontNamed: "Helvetica-Bold").then { node in
-                        node.text = "Back".localized()
-                        node.fontColor = SKColor.black
-                        node.fontSize = 50
-                        node.zPosition = 100
-                        node.horizontalAlignmentMode = .center
-                        node.verticalAlignmentMode = .center
-                        node.position = CGPoint(x: 0, y: 0)
-                    }
-                    backButton.addChild(backLabel)
-                }
-                #if !targetEnvironment(macCatalyst)
-                    bannerView.isHidden = false
-                #endif
-            } else if node.name == "resumeButton" {
-                run(tapSound)
-                enumerateChildNodes(withName: "pauseMenu") { node, _ in
-                    node.removeFromParent()
-                }
-                isResume = true
-                gameLayerNode.isPaused = false
-                physicsWorld.speed = 1
-                gameState = .play
-                #if !targetEnvironment(macCatalyst)
-                    bannerView.isHidden = true
-                #endif
-                return
-            } else if node.name == "backButton" {
-                isResume = true
-                gameLayerNode.isPaused = false
-                backgroundMusicPlayer.stop()
-                run(tapSound)
-                let mainMenuScene = MainMenuScene()
-                mainMenuScene.size = size
-                mainMenuScene.scaleMode = .aspectFill
-                view?.presentScene(mainMenuScene)
-            }
-        }
-
-        if !gameLayerNode.isPaused {
-            netNode.position = touchLocation
-            if netNode.parent == nil {
-                addChild(netNode)
-            }
-        }
+        lastSlicePoint = location
+        showNet(at: location)
+        captureBugs(at: location)
     }
-
-    // MARK: - touchesMoved
 
     override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
-        guard !gameEnded else { return }
+        guard let touch = touches.first, gameState == .playing, !gameEnded else { return }
+        let location = touch.location(in: self)
+        let previousLocation = lastSlicePoint
+        lastSlicePoint = location
 
-        guard let vTouch = touches.first else { return }
-        let touchLocation = vTouch.location(in: self)
-        activeSlicePoints.append(touchLocation)
-
-        netNode.position = touchLocation
-
-        let nodesAtPoint = nodes(at: touchLocation)
-
-        for node in nodesAtPoint {
-            switch node.name {
-            case "bee":
-                score += 3
-                node.name = ""
-                node.run(catchAnimation())
-                run(catchGoodBugSound)
-            case "lady_bug":
-                score += 2
-                node.name = ""
-                node.run(catchAnimation())
-                run(catchGoodBugSound)
-            case "leafbeetle":
-                score += 1
-                node.name = ""
-                node.run(catchAnimation())
-                run(catchGoodBugSound)
-            case "blue_beetle":
-                score -= 1
-                node.name = ""
-                node.run(catchAnimation())
-                run(catchBadBugSound)
-            case "starbeetle":
-                score -= 2
-                node.name = ""
-                node.run(catchAnimation())
-                run(catchBadBugSound)
-            case "stinkbug":
-                score -= 3
-                node.name = ""
-                node.run(catchAnimation())
-                run(catchBadBugSound)
-            default:
-                break
-            }
+        showNet(at: location)
+        if let previousLocation {
+            addSwipeTrail(from: previousLocation, to: location)
         }
+        captureBugs(at: location)
     }
-
-    func catchAnimation() -> SKAction {
-        let scaleOutAction = SKAction.scale(by: 0.001, duration: 0.6)
-        let fadeOutAction = SKAction.fadeOut(withDuration: 0.6)
-        let rotateAction = SKAction.rotate(byAngle: CGFloat(2 * Double.pi), duration: 0.6)
-        let action = SKAction.sequence([
-            SKAction.group([scaleOutAction, fadeOutAction, rotateAction]),
-            SKAction.removeFromParent(),
-        ])
-        return action
-    }
-
-    // MARK: - touchesEnded
 
     override func touchesEnded(_ touches: Set<UITouch>?, with event: UIEvent?) {
-        if !gameLayerNode.isPaused {
-            netNode.removeFromParent()
-        }
+        hideNet()
+        lastSlicePoint = nil
     }
 
-    // MARK: - touchesCancelled
-
     override func touchesCancelled(_ touches: Set<UITouch>?, with event: UIEvent?) {
-        guard let vTouches = touches else { return }
-        touchesEnded(vTouches, with: event)
+        touchesEnded(touches, with: event)
+    }
+
+    private func handleControlTap(at location: CGPoint) -> Bool {
+        guard let control = namedControl(at: location) else { return false }
+
+        switch control.name {
+        case "pauseButton":
+            animateButtonPress(control)
+            run(tapSound)
+            pauseGame()
+        case "resumeButton":
+            animateButtonPress(control)
+            run(tapSound)
+            resumeGame()
+        case "backButton":
+            animateButtonPress(control)
+            run(tapSound)
+            returnToMainMenu()
+        default:
+            return false
+        }
+        return true
+    }
+
+    private func namedControl(at location: CGPoint) -> SKNode? {
+        for node in nodes(at: location) {
+            var candidate: SKNode? = node
+            while let current = candidate {
+                if ["pauseButton", "resumeButton", "backButton"].contains(current.name ?? "") {
+                    return current
+                }
+                candidate = current.parent
+            }
+        }
+        return nil
     }
 }
 
-// MARK: - helper
+// MARK: - Game feel
 
 extension GameScene {
-    func sceneCropAmount() -> CGFloat {
-        guard let view = view else { return 0 }
-
-        let scale = view.bounds.size.width / size.width
-        print("scale: \(scale)")
-        let scaledHeight = size.height * scale
-        let scaledOverlap = scaledHeight - view.bounds.size.height
-        return scaledOverlap / scale
+    private func showNet(at location: CGPoint) {
+        netNode.position = location
+        if netNode.parent == nil {
+            effectsNode.addChild(netNode)
+        }
+        netNode.removeAction(forKey: "netPop")
+        netNode.setScale(0.28)
+        netNode.run(.sequence([
+            .scale(to: 0.34, duration: 0.06),
+            .scale(to: 0.30, duration: 0.10),
+        ]), withKey: "netPop")
     }
 
-    // MARK: - createWorld
+    private func hideNet() {
+        netNode.removeFromParent()
+    }
 
-    func createWorld() {
-        addChild(gameLayerNode)
+    private func addSwipeTrail(from start: CGPoint, to end: CGPoint) {
+        let path = CGMutablePath()
+        path.move(to: start)
+        path.addLine(to: end)
+
+        let trail = SKShapeNode(path: path)
+        trail.strokeColor = GardenPalette.mint.withAlphaComponent(0.72)
+        trail.lineWidth = 14
+        trail.lineCap = .round
+        trail.zPosition = 1
+        effectsNode.addChild(trail)
+        trail.run(.sequence([
+            .group([
+                .fadeOut(withDuration: 0.18),
+                .scale(to: 0.92, duration: 0.18),
+            ]),
+            .removeFromParent(),
+        ]))
+    }
+
+    private func captureBugs(at location: CGPoint) {
+        for node in nodes(at: location) {
+            guard let name = node.name,
+                  let kind = BugKind(rawValue: name),
+                  node.action(forKey: "capture") == nil else { continue }
+            capture(node, as: kind)
+        }
+    }
+
+    private func capture(_ bug: SKNode, as kind: BugKind) {
+        bug.name = nil
+        bug.removeAllActions()
+        score += kind.points
+
+        let position = bug.position
+        addCaptureBurst(at: position, kind: kind)
+        addScorePop(at: position, points: kind.points, color: kind.feedbackColor)
+        shakePlayfield(intensity: kind.isFriendly ? 9 : 14)
+        hitStop(duration: kind.isFriendly ? 0.04 : 0.09)
+        triggerHaptic(isFriendly: kind.isFriendly)
+        run(kind.isFriendly ? catchGoodBugSound : catchBadBugSound)
+
+        let squash = SKAction.scale(to: 0.88, duration: 0.05)
+        let exit = SKAction.group([
+            .scale(to: 0.06, duration: 0.22),
+            .fadeOut(withDuration: 0.22),
+            .rotate(byAngle: kind.isFriendly ? .pi * 1.5 : -.pi * 1.5, duration: 0.22),
+        ])
+        bug.run(.sequence([squash, exit, .removeFromParent()]), withKey: "capture")
+    }
+
+    private func addCaptureBurst(at position: CGPoint, kind: BugKind) {
+        let colors = [kind.feedbackColor, GardenPalette.cream, GardenPalette.mint]
+        for index in 0 ..< 11 {
+            let sparkle = SKShapeNode(circleOfRadius: index.isMultiple(of: 3) ? 10 : 6)
+            sparkle.fillColor = colors[index % colors.count]
+            sparkle.strokeColor = .clear
+            sparkle.position = position
+            sparkle.zPosition = 2
+            effectsNode.addChild(sparkle)
+
+            let angle = CGFloat(index) / 11 * .pi * 2 + CGFloat.random(in: -0.18 ... 0.18)
+            let distance = CGFloat.random(in: 66 ... 132)
+            let destination = CGPoint(
+                x: position.x + cos(angle) * distance,
+                y: position.y + sin(angle) * distance)
+            sparkle.run(.sequence([
+                .group([
+                    .move(to: destination, duration: 0.32),
+                    .rotate(byAngle: .pi * 2, duration: 0.32),
+                    .sequence([
+                        .wait(forDuration: 0.12),
+                        .fadeOut(withDuration: 0.20),
+                    ]),
+                ]),
+                .removeFromParent(),
+            ]))
+        }
+    }
+
+    private func addScorePop(at position: CGPoint, points: Int, color: SKColor) {
+        let scorePop = SKLabelNode(fontNamed: "AvenirNext-Heavy")
+        scorePop.text = points > 0 ? "+\(points)" : "\(points)"
+        scorePop.fontColor = color
+        scorePop.fontSize = 52
+        scorePop.horizontalAlignmentMode = .center
+        scorePop.verticalAlignmentMode = .center
+        scorePop.position = position
+        scorePop.zPosition = 3
+        scorePop.setScale(0.55)
+        effectsNode.addChild(scorePop)
+        scorePop.run(.sequence([
+            .group([
+                .moveBy(x: 0, y: 108, duration: 0.55),
+                .sequence([
+                    .scale(to: 1.18, duration: 0.12),
+                    .scale(to: 0.96, duration: 0.16),
+                ]),
+                .sequence([
+                    .wait(forDuration: 0.28),
+                    .fadeOut(withDuration: 0.27),
+                ]),
+            ]),
+            .removeFromParent(),
+        ]))
+    }
+
+    /// Freezes the playfield for a couple of frames so a catch lands with weight.
+    /// Effects keep animating, which is what sells the impact.
+    private func hitStop(duration: TimeInterval) {
+        guard gameState == .playing, !gameEnded else { return }
+        gameLayerNode.speed = 0
+        removeAction(forKey: "hitStop")
+        run(.sequence([
+            .wait(forDuration: duration),
+            .run { [weak self] in self?.gameLayerNode.speed = 1 },
+        ]), withKey: "hitStop")
+    }
+
+    private func shakePlayfield(intensity: CGFloat) {
+        guard playfieldNode.action(forKey: "shake") == nil else { return }
+        let moves: [SKAction] = [
+            .moveBy(x: intensity, y: -intensity * 0.45, duration: 0.025),
+            .moveBy(x: -intensity * 1.45, y: intensity * 0.8, duration: 0.04),
+            .moveBy(x: intensity * 0.75, y: -intensity * 0.42, duration: 0.04),
+            .move(to: .zero, duration: 0.06),
+        ]
+        playfieldNode.run(.sequence(moves), withKey: "shake")
+    }
+
+    private func triggerHaptic(isFriendly: Bool) {
+        #if !targetEnvironment(macCatalyst)
+            let generator = UIImpactFeedbackGenerator(style: isFriendly ? .medium : .rigid)
+            generator.prepare()
+            generator.impactOccurred(intensity: isFriendly ? 0.72 : 0.9)
+        #endif
+    }
+}
+
+// MARK: - Scene construction
+
+extension GameScene {
+    private func createWorld() {
+        playfieldNode.zPosition = 0
+        addChild(playfieldNode)
+
         let background = SKSpriteNode(imageNamed: "bg_2048x1536")
         background.position = CGPoint(x: size.width / 2, y: size.height / 2)
-        background.zPosition = 1
-        addChild(background)
+        background.zPosition = 0
+        playfieldNode.addChild(background)
 
-        let playableMargin = sceneCropAmount() / 2.0
-        #if !targetEnvironment(macCatalyst)
-            let playableHeight = size.height - 2 * playableMargin
-        #else
-            let playableHeight = size.height - 2 * playableMargin - 50
-        #endif
-        playableRect = CGRect(x: 0, y: playableMargin,
-                              width: size.width,
-                              height: playableHeight)
+        gameLayerNode.zPosition = 1
+        playfieldNode.addChild(gameLayerNode)
 
-        let toolbar = SKSpriteNode(imageNamed: "toolbar")
-        toolbar.position = CGPoint(
-            x: size.width / 2,
-            y: playableRect.minY + playableRect.height - toolbar.size.height / 2)
-        toolbar.zPosition = 99
-        addChild(toolbar)
+        effectsNode.zPosition = 10
+        addChild(effectsNode)
 
-        let pauseButton = SKSpriteNode(imageNamed: "pauseButton")
-        pauseButton.setScale(0.6)
-        pauseButton.position = CGPoint(
-            x: size.width - 180,
-            y: playableRect.minY + playableRect.height - 60)
-        pauseButton.zPosition = 100
-        pauseButton.name = "pauseButton"
-        addChild(pauseButton)
-
-        topLimit = playableRect.minY + playableRect.height - toolbar.size.height
-
+        let playableMargin = sceneCropAmount() / 2
+        playableRect = CGRect(
+            x: 0,
+            y: playableMargin,
+            width: size.width,
+            height: size.height - playableMargin * 2)
+        topLimit = playableRect.maxY - 164
         bottomLimit = playableRect.minY
     }
 
-    // MARK: - createLabels
+    private func createHUD() {
+        hudNode.zPosition = 100
+        addChild(hudNode)
+        let hudY = playableRect.maxY - 78
 
-    func createLabels() {
-//        #if !targetEnvironment(macCatalyst)
-        let labelY = topLimit + 100
-//        #else
-//            let labelY = topLimit + 0
-//        #endif
+        let strip = SKShapeNode(rectOf: CGSize(width: size.width - 64, height: 122), cornerRadius: 34)
+        strip.position = CGPoint(x: size.width / 2, y: hudY)
+        strip.fillColor = GardenPalette.forest
+        strip.strokeColor = GardenPalette.mint.withAlphaComponent(0.35)
+        strip.lineWidth = 3
+        strip.zPosition = 0
+        hudNode.addChild(strip)
 
-        scoreLabel.position = CGPoint(
-            x: 80,
-            y: labelY)
+        let scoreCard = makeHUDCard(center: CGPoint(x: 218, y: hudY), size: CGSize(width: 326, height: 88))
+        let bestCard = makeHUDCard(center: CGPoint(x: size.width / 2, y: hudY), size: CGSize(width: 400, height: 88))
+        let timeCard = makeHUDCard(center: CGPoint(x: size.width - 292, y: hudY), size: CGSize(width: 270, height: 88))
+        [scoreCard, bestCard, timeCard].forEach { card in
+            card.zPosition = 1
+            hudNode.addChild(card)
+        }
 
-        bestScoreLabel.position = CGPoint(
-            x: size.width / 2 - 180,
-            y: labelY)
+        scoreLabel.position = CGPoint(x: scoreCard.position.x, y: scoreCard.position.y + 9)
+        bestScoreLabel.position = CGPoint(x: bestCard.position.x, y: bestCard.position.y + 9)
+        timeLabel.position = CGPoint(x: timeCard.position.x, y: timeCard.position.y + 16)
+        [scoreLabel, bestScoreLabel, timeLabel].forEach { label in
+            label.zPosition = 2
+            hudNode.addChild(label)
+        }
 
-        timeLabel.position = CGPoint(
-            x: size.width - CGFloat(320),
-            y: labelY)
+        let barTrack = SKShapeNode(rectOf: CGSize(width: 194, height: 10), cornerRadius: 5)
+        barTrack.position = CGPoint(x: timeCard.position.x, y: timeCard.position.y - 24)
+        barTrack.fillColor = SKColor.black.withAlphaComponent(0.22)
+        barTrack.strokeColor = .clear
+        barTrack.zPosition = 2
+        hudNode.addChild(barTrack)
 
-        addChild(scoreLabel)
-        addChild(bestScoreLabel)
-        addChild(timeLabel)
+        let fill = SKShapeNode(rectOf: CGSize(width: 188, height: 6), cornerRadius: 3)
+        fill.position = barTrack.position
+        fill.fillColor = GardenPalette.leaf
+        fill.strokeColor = .clear
+        fill.zPosition = 3
+        hudNode.addChild(fill)
+        timeBarFill = fill
+
+        let pauseButton = SKShapeNode(circleOfRadius: 44)
+        pauseButton.position = CGPoint(x: size.width - 78, y: hudY)
+        pauseButton.name = "pauseButton"
+        pauseButton.fillColor = GardenPalette.leaf
+        pauseButton.strokeColor = GardenPalette.mint
+        pauseButton.lineWidth = 3
+        pauseButton.zPosition = 4
+        hudNode.addChild(pauseButton)
+
+        let pauseGlyph = SKLabelNode(fontNamed: "AvenirNext-Heavy")
+        pauseGlyph.text = "Ⅱ"
+        pauseGlyph.fontColor = GardenPalette.cream
+        pauseGlyph.fontSize = 36
+        pauseGlyph.verticalAlignmentMode = .center
+        pauseGlyph.horizontalAlignmentMode = .center
+        pauseGlyph.position = .zero
+        pauseGlyph.zPosition = 1
+        pauseButton.addChild(pauseGlyph)
+
+        updateScoreUI()
+        updateTimerUI()
     }
 
-    // MARK: - spawnBugs1
+    private func makeHUDCard(center: CGPoint, size: CGSize) -> SKShapeNode {
+        let card = SKShapeNode(rectOf: size, cornerRadius: 24)
+        card.position = center
+        card.fillColor = SKColor.white.withAlphaComponent(0.13)
+        card.strokeColor = SKColor.white.withAlphaComponent(0.16)
+        card.lineWidth = 2
+        return card
+    }
 
-    func spawnBugs1() {
-        delay(seconds: 1.0) {
-            self.gameLayerNode.run(
-                SKAction.repeatForever(
-                    SKAction.sequence([
-                        SKAction.run(self.createTopBugs),
-                        SKAction.wait(forDuration: 1.5, withRange: 0.5),
-                    ]))
-            )
-        }
+    private static func makeHUDLabel(alignment: SKLabelHorizontalAlignmentMode) -> SKLabelNode {
+        let label = SKLabelNode(fontNamed: "AvenirNext-Heavy")
+        label.fontColor = GardenPalette.cream
+        label.fontSize = 41
+        label.horizontalAlignmentMode = alignment
+        label.verticalAlignmentMode = .center
+        return label
+    }
 
-        delay(seconds: 1.0) {
-            self.gameLayerNode.run(
-                SKAction.repeatForever(
-                    SKAction.sequence([
-                        SKAction.run(self.createLeftBugs),
-                        SKAction.wait(forDuration: 1.5, withRange: 0.5),
-                    ]))
-            )
-        }
+    private func updateScoreUI() {
+        scoreLabel.text = "\("Score".localized()): \(score)"
 
-        delay(seconds: 1.0) {
-            self.gameLayerNode.run(
-                SKAction.repeatForever(
-                    SKAction.sequence([
-                        SKAction.run(self.createRightBugs),
-                        SKAction.wait(forDuration: 1.5, withRange: 0.5),
-                    ]))
-            )
+        let storedBest = UserDefaults.standard.object(forKey: Constants.UserDefaultsKeys.BEST_SCORE) as? Int ?? 0
+        let bestScore = max(storedBest, score)
+        if bestScore != storedBest {
+            UserDefaults.standard.set(bestScore, forKey: Constants.UserDefaultsKeys.BEST_SCORE)
         }
+        bestScoreLabel.text = "\("Best Score".localized()): \(bestScore)"
 
-        delay(seconds: 1.0) {
-            self.gameLayerNode.run(
-                SKAction.repeatForever(
-                    SKAction.sequence([
-                        SKAction.run(self.createBottomBugs),
-                        SKAction.wait(forDuration: 1.5, withRange: 0.5),
-                    ]))
-            )
+        guard scoreLabel.parent != nil else { return }
+        scoreLabel.removeAction(forKey: "scorePulse")
+        scoreLabel.setScale(1)
+        scoreLabel.run(.sequence([
+            .scale(to: 1.18, duration: 0.08),
+            .scale(to: 1, duration: 0.18),
+        ]), withKey: "scorePulse")
+    }
+
+    private func updateTimerUI() {
+        let roundedTime = max(0, Int(ceil(timeRemaining)))
+        timeLabel.text = "\("Time".localized()): \(roundedTime)s"
+        timeBarFill?.xScale = max(0.02, CGFloat(timeRemaining / maxTime))
+
+        if timeRemaining <= 10 {
+            timeLabel.fontColor = GardenPalette.coral
+            timeBarFill?.fillColor = GardenPalette.coral
+            if !isTimerUrgent {
+                isTimerUrgent = true
+                timeLabel.run(.repeatForever(.sequence([
+                    .scale(to: 1.1, duration: 0.34),
+                    .scale(to: 1, duration: 0.34),
+                ])), withKey: "urgentTimer")
+            }
+        } else {
+            timeLabel.fontColor = GardenPalette.cream
+            timeBarFill?.fillColor = GardenPalette.leaf
         }
+    }
+
+    private func sceneCropAmount() -> CGFloat {
+        guard let view else { return 0 }
+        let scale = max(view.bounds.width / size.width, view.bounds.height / size.height)
+        let scaledHeight = size.height * scale
+        return max(0, scaledHeight - view.bounds.height) / scale
     }
 }
 
-// MARK: - create bug related
+// MARK: - Bug spawning
+
+/// The edge a bug enters from. Every bug crosses the playfield and exits the far side.
+private enum SpawnEdge: CaseIterable {
+    case top, bottom, left, right
+}
 
 extension GameScene {
-    // MARK: - bug related
+    /// Bug sprites are drawn head-up, so a bug travelling along `vector` has to be
+    /// rotated from that resting orientation onto its heading.
+    private static func heading(for vector: CGVector) -> CGFloat {
+        atan2(vector.dy, vector.dx) - .pi / 2
+    }
 
-    func createRandomBug() -> SKSpriteNode {
-        var bug: SKSpriteNode!
-        var bugAnimation: SKAction!
-        let kind = lround(Double(random(min: 0.0, max: 5.0)))
-        switch kind {
-        case 0:
-            bug = SKSpriteNode(imageNamed: "bee_1")
-            bug.name = "bee"
-            bugAnimation = beeAnimation
-        case 1:
-            bug = SKSpriteNode(imageNamed: "lady_bug_1")
-            bug.name = "lady_bug"
-            bugAnimation = ladyBugAnimation
-        case 2:
-            bug = SKSpriteNode(imageNamed: "leafbeetle_1")
-            bug.name = "leafbeetle"
-            bugAnimation = leafBeetleAnimation
-        case 3:
-            bug = SKSpriteNode(imageNamed: "blue_beetle_1")
-            bug.name = "blue_beetle"
-            bugAnimation = blueBeetleAnimation
-        case 4:
-            bug = SKSpriteNode(imageNamed: "starbeetle_1")
-            bug.name = "starbeetle"
-            bugAnimation = starBeetleAnimation
-        case 5:
-            bug = SKSpriteNode(imageNamed: "stinkbug_1")
-            bug.name = "stinkbug"
-            bugAnimation = stinkBugAnimation
-        default:
-            bug = SKSpriteNode(imageNamed: "bee_1")
-            bug.name = "bee"
-            bugAnimation = beeAnimation
+    private func startSpawningBugs() {
+        for (index, edge) in SpawnEdge.allCases.enumerated() {
+            let action = SKAction.sequence([
+                .wait(forDuration: 0.5 + Double(index) * 0.22),
+                .repeatForever(.sequence([
+                    .run { [weak self] in self?.spawnBug(from: edge) },
+                    .wait(forDuration: 1.35, withRange: 0.5),
+                ])),
+            ])
+            gameLayerNode.run(action, withKey: "spawner\(index)")
         }
-        bug.setScale(0.6)
+    }
+
+    private func makeBug() -> SKSpriteNode {
+        let kind = BugKind.allCases.randomElement() ?? .bee
+        let bug = SKSpriteNode(imageNamed: kind.textureName)
+        bug.name = kind.rawValue
         bug.zPosition = 2
-        bug.run(SKAction.repeatForever(bugAnimation))
+        bug.setScale(GameScene.bugScale)
+        bug.run(.repeatForever(kind.animation), withKey: "flutter")
+        // A small wing-tilt wobble around the heading, which always returns to zero.
+        bug.run(.repeatForever(.sequence([
+            .rotate(byAngle: 0.07, duration: 0.42),
+            .rotate(byAngle: -0.14, duration: 0.84),
+            .rotate(byAngle: 0.07, duration: 0.42),
+        ])), withKey: "wobble")
         return bug
     }
 
-    func createTopBugs() {
-        let bug = createRandomBug()
-        let initialX = CGFloat.random(
-            min: 0 + bug.size.width / 2,
-            max: size.width - bug.size.width / 2)
-        let initialY = CGFloat(topLimit) + bug.size.height / 2
+    private func spawnBug(from edge: SpawnEdge) {
+        let bug = makeBug()
+        // Half the diagonal, so the sprite is clear of the screen at any heading.
+        let radius = hypot(bug.size.width, bug.size.height) / 2
+        let laneX = { CGFloat.random(in: radius ... max(radius, self.size.width - radius)) }
+        let laneY = { CGFloat.random(in: self.bottomLimit + radius ... max(self.bottomLimit + radius, self.topLimit - radius)) }
 
-        bug.position = CGPoint(
-            x: initialX,
-            y: initialY)
-        bug.zRotation = CGFloat.pi
+        let origin: CGPoint
+        let destination: CGPoint
+        switch edge {
+        case .top:
+            origin = CGPoint(x: laneX(), y: playableRect.maxY + radius)
+            destination = CGPoint(x: laneX(), y: playableRect.minY - radius)
+        case .bottom:
+            origin = CGPoint(x: laneX(), y: playableRect.minY - radius)
+            destination = CGPoint(x: laneX(), y: playableRect.maxY + radius)
+        case .left:
+            origin = CGPoint(x: -radius, y: laneY())
+            destination = CGPoint(x: size.width + radius, y: laneY())
+        case .right:
+            origin = CGPoint(x: size.width + radius, y: laneY())
+            destination = CGPoint(x: -radius, y: laneY())
+        }
+
+        bug.position = origin
         gameLayerNode.addChild(bug)
-
-        let offsetX = random(min: size.width * 1 / 4, max: size.width)
-        let deltaX = random(min: -offsetX, max: offsetX)
-        let deltaY = bottomLimit - topLimit - bug.size.height / 2
-        bug.zRotation -= atan(deltaX / deltaY)
-        let duration = TimeInterval(random(
-            min: random(min: 3, max: 4),
-            max: random(min: 5, max: 6)))
-        let actionMove =
-            SKAction.moveBy(x: deltaX, y: deltaY, duration: duration)
-        let actionRemove = SKAction.removeFromParent()
-        bug.run(SKAction.sequence([actionMove, actionRemove]))
+        fly(bug, to: destination)
     }
 
-    func createLeftBugs() {
-        let bug = createRandomBug()
-        let initialX: CGFloat = CGFloat(0) - bug.size.width / 2
-        let initialY: CGFloat = CGFloat.random(
-            min: bottomLimit + bug.size.height / 2,
-            max: topLimit - bug.size.height / 2)
+    private func fly(_ bug: SKSpriteNode, to destination: CGPoint) {
+        let vector = CGVector(dx: destination.x - bug.position.x, dy: destination.y - bug.position.y)
+        bug.zRotation = GameScene.heading(for: vector)
 
-        bug.position = CGPoint(
-            x: initialX,
-            y: initialY)
-        bug.zRotation = -CGFloat.pi / 2
-        gameLayerNode.addChild(bug)
-
-        let deltaX: CGFloat = size.width + bug.size.width / 2
-        let offsetX = random(min: size.height * 1 / 4, max: size.height)
-        let deltaY: CGFloat = random(min: -offsetX, max: offsetX)
-        bug.zRotation += atan(deltaY / deltaX)
-        let duration = TimeInterval(random(
-            min: random(min: 3, max: 4),
-            max: random(min: 5, max: 6)))
-        let actionMove =
-            SKAction.moveBy(x: deltaX, y: deltaY, duration: duration)
-        let actionRemove = SKAction.removeFromParent()
-        bug.run(SKAction.sequence([actionMove, actionRemove]))
+        let distance = hypot(vector.dx, vector.dy)
+        let speed = CGFloat.random(in: 300 ... 430) * difficultyMultiplier
+        bug.run(.sequence([
+            .move(to: destination, duration: TimeInterval(distance / speed)),
+            .removeFromParent(),
+        ]), withKey: "travel")
     }
 
-    func createRightBugs() {
-        let bug = createRandomBug()
-        let initialX: CGFloat = CGFloat(size.width) + bug.size.width / 2
-        let initialY: CGFloat = CGFloat.random(
-            min: bottomLimit + bug.size.height / 2,
-            max: topLimit - bug.size.height / 2)
-
-        bug.position = CGPoint(
-            x: initialX,
-            y: initialY)
-        bug.zRotation = CGFloat.pi / 2
-        gameLayerNode.addChild(bug)
-
-        let deltaX: CGFloat = -size.width - bug.size.width / 2
-        let offsetX = random(min: size.height * 1 / 4, max: size.height)
-        let deltaY: CGFloat = random(min: -offsetX, max: offsetX)
-        bug.zRotation += atan(deltaY / deltaX)
-        let duration = TimeInterval(random(
-            min: random(min: 3, max: 4),
-            max: random(min: 5, max: 6)))
-        let actionMove =
-            SKAction.moveBy(x: deltaX, y: deltaY, duration: duration)
-        let actionRemove = SKAction.removeFromParent()
-        bug.run(SKAction.sequence([actionMove, actionRemove]))
+    /// Bugs speed up gently as the round runs down.
+    private var difficultyMultiplier: CGFloat {
+        let progress = CGFloat(1 - max(0, timeRemaining) / maxTime)
+        return 1 + progress * 0.45
     }
 
-    func createBottomBugs() {
-        let bug = createRandomBug()
-        let initialX = CGFloat.random(
-            min: 0 + bug.size.width / 2,
-            max: size.width - bug.size.width / 2)
-        let initialY = CGFloat(bottomLimit) - bug.size.height / 2
-
-        bug.position = CGPoint(
-            x: initialX,
-            y: initialY)
-        bug.zRotation = 0
-        gameLayerNode.addChild(bug)
-
-        let offsetX = random(min: size.width * 1 / 4, max: size.width)
-        let deltaX = random(min: -offsetX, max: offsetX)
-        let deltaY = topLimit - bottomLimit + bug.size.height / 2
-        bug.zRotation -= atan(deltaX / deltaY)
-        let duration = TimeInterval(random(
-            min: random(min: 3, max: 4),
-            max: random(min: 5, max: 6)))
-        let actionMove =
-            SKAction.moveBy(x: deltaX, y: deltaY, duration: duration)
-        let actionRemove = SKAction.removeFromParent()
-        bug.run(SKAction.sequence([actionMove, actionRemove]))
-    }
-
-    func spawnBugWave() {
-        for _ in 0 ... 6 {
-            gameLayerNode.run(SKAction.run(createTopBugs))
-            gameLayerNode.run(SKAction.run(createBottomBugs))
-            gameLayerNode.run(SKAction.run(createLeftBugs))
-            gameLayerNode.run(SKAction.run(createRightBugs))
+    private func spawnBugWave() {
+        shakePlayfield(intensity: 5)
+        let edges = SpawnEdge.allCases
+        for index in 0 ..< 10 {
+            let edge = edges[index % edges.count]
+            gameLayerNode.run(.sequence([
+                .wait(forDuration: Double(index) * 0.09),
+                .run { [weak self] in self?.spawnBug(from: edge) },
+            ]))
         }
     }
 }
 
-// MARK: - game play related
+// MARK: - Pause and completion
 
 extension GameScene {
-    func timeUp() {
+    private func pauseGame() {
+        guard gameState == .playing, !gameEnded else { return }
+        gameState = .paused
+        removeAction(forKey: "hitStop")
+        gameLayerNode.speed = 1
+        gameLayerNode.isPaused = true
+        physicsWorld.speed = 0
+        hideNet()
+        lastSlicePoint = nil
+
+        let overlay = SKNode()
+        overlay.name = "pauseOverlay"
+        overlay.zPosition = 200
+        addChild(overlay)
+        pauseOverlay = overlay
+
+        let dimmer = SKShapeNode(rectOf: size)
+        dimmer.position = CGPoint(x: size.width / 2, y: size.height / 2)
+        dimmer.fillColor = SKColor.black.withAlphaComponent(0.52)
+        dimmer.strokeColor = .clear
+        dimmer.zPosition = 0
+        overlay.addChild(dimmer)
+
+        let panel = SKShapeNode(rectOf: CGSize(width: 600, height: 430), cornerRadius: 48)
+        panel.position = CGPoint(x: size.width / 2, y: size.height / 2)
+        panel.fillColor = GardenPalette.forestSolid
+        panel.strokeColor = GardenPalette.mint.withAlphaComponent(0.7)
+        panel.lineWidth = 5
+        panel.zPosition = 1
+        panel.setScale(0.78)
+        overlay.addChild(panel)
+
+        let pauseGlyph = SKLabelNode(fontNamed: "AvenirNext-Heavy")
+        pauseGlyph.text = "Ⅱ"
+        pauseGlyph.fontColor = GardenPalette.mint
+        pauseGlyph.fontSize = 112
+        pauseGlyph.verticalAlignmentMode = .center
+        pauseGlyph.horizontalAlignmentMode = .center
+        pauseGlyph.position = CGPoint(x: 0, y: 126)
+        pauseGlyph.zPosition = 1
+        panel.addChild(pauseGlyph)
+
+        let pauseTitle = SKLabelNode(fontNamed: "AvenirNext-Heavy")
+        pauseTitle.text = "Pause".localized()
+        pauseTitle.fontColor = GardenPalette.cream
+        pauseTitle.fontSize = 46
+        pauseTitle.verticalAlignmentMode = .center
+        pauseTitle.horizontalAlignmentMode = .center
+        pauseTitle.position = CGPoint(x: 0, y: 48)
+        pauseTitle.zPosition = 1
+        panel.addChild(pauseTitle)
+
+        for button in [
+            makeMenuButton(name: "resumeButton", title: "Resume".localized(), color: GardenPalette.leaf, position: CGPoint(x: 0, y: -32)),
+            makeMenuButton(name: "backButton", title: "Back".localized(), color: GardenPalette.coral, position: CGPoint(x: 0, y: -154)),
+        ] {
+            button.zPosition = 1
+            panel.addChild(button)
+        }
+        panel.run(.sequence([
+            .scale(to: 1.04, duration: 0.17),
+            .scale(to: 1, duration: 0.13),
+        ]), withKey: "enter")
+    }
+
+    private func resumeGame() {
+        guard gameState == .paused else { return }
+        gameState = .playing
+        gameLayerNode.isPaused = false
+        gameLayerNode.speed = 1
+        physicsWorld.speed = 1
+        lastUpdateTime = 0
+
+        let overlay = pauseOverlay
+        pauseOverlay = nil
+        overlay?.run(.sequence([
+            .group([
+                .fadeOut(withDuration: 0.16),
+                .scale(to: 1.04, duration: 0.16),
+            ]),
+            .removeFromParent(),
+        ]))
+    }
+
+    private func returnToMainMenu() {
+        gameLayerNode.isPaused = false
         backgroundMusicPlayer.stop()
+        let scene = MainMenuScene(size: size)
+        scene.scaleMode = .aspectFill
+        view?.presentScene(scene, transition: .crossFade(withDuration: 0.28))
+    }
+
+    private func timeUp() {
+        guard !gameEnded else { return }
         gameEnded = true
-        let gameOverScene = GameOverScene()
-        gameOverScene.size = size
-        gameOverScene.newbestScore = newbestScore
-        gameOverScene.scaleMode = .aspectFill
-        view?.presentScene(gameOverScene)
+        gameState = .paused
+        gameLayerNode.isPaused = true
+        backgroundMusicPlayer.stop()
+
+        let scene = GameOverScene(size: size)
+        scene.finalScore = score
+        scene.bestScore = max(startingBest, score)
+        scene.isNewBest = score > startingBest
+        scene.scaleMode = .aspectFill
+        view?.presentScene(scene, transition: .crossFade(withDuration: 0.35))
+    }
+
+    private func makeMenuButton(name: String, title: String, color: SKColor, position: CGPoint) -> SKShapeNode {
+        let button = SKShapeNode(rectOf: CGSize(width: 390, height: 84), cornerRadius: 24)
+        button.name = name
+        button.position = position
+        button.fillColor = color
+        button.strokeColor = GardenPalette.cream.withAlphaComponent(0.68)
+        button.lineWidth = 3
+
+        let label = SKLabelNode(fontNamed: "AvenirNext-Heavy")
+        label.text = title
+        label.fontColor = GardenPalette.cream
+        label.fontSize = 36
+        label.verticalAlignmentMode = .center
+        label.horizontalAlignmentMode = .center
+        label.position = .zero
+        label.zPosition = 1
+        button.addChild(label)
+        return button
+    }
+
+    private func animateButtonPress(_ button: SKNode) {
+        button.removeAction(forKey: "press")
+        button.run(.sequence([
+            .scale(to: 0.92, duration: 0.05),
+            .scale(to: 1, duration: 0.14),
+        ]), withKey: "press")
     }
 }
 
-// MARK: - Notifications
+// MARK: - Application lifecycle
 
 extension GameScene {
-    func addObservers() {
+    private func addObservers() {
         let notificationCenter = NotificationCenter.default
-        notificationCenter.addObserver(forName: UIApplication.didBecomeActiveNotification, object: nil, queue: nil) { [weak self] _ in
-            self?.applicationDidBecomeActive()
-        }
-        notificationCenter.addObserver(forName: UIApplication.willResignActiveNotification, object: nil, queue: nil) { [weak self] _ in
-            self?.applicationWillResignActive()
-        }
-        notificationCenter.addObserver(forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: nil) { [weak self] _ in
-            self?.applicationDidEnterBackground()
-        }
-    }
-
-    func applicationDidBecomeActive() {
-        print("* applicationDidBecomeActive")
-    }
-
-    func applicationWillResignActive() {
-        print("* applicationWillResignActive")
-        gameState = .pause
-    }
-
-    func applicationDidEnterBackground() {
-        print("* applicationDidEnterBackground")
-        gameState = .pause
+        notificationObservers.append(notificationCenter.addObserver(
+            forName: UIApplication.willResignActiveNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.pauseGame()
+        })
+        notificationObservers.append(notificationCenter.addObserver(
+            forName: UIApplication.didEnterBackgroundNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.pauseGame()
+        })
     }
 }

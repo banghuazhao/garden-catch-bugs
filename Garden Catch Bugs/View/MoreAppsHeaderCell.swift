@@ -6,6 +6,9 @@
 //  Copyright © 2021 Banghua Zhao. All rights reserved.
 //
 
+import Localize_Swift
+import SnapKit
+import Then
 import UIKit
 
 class MoreAppsHeaderCell: UITableViewCell {

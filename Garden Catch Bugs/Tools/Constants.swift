@@ -29,6 +29,7 @@ struct Constants {
     struct UserDefaultsKeys {
         static let OPEN_COUNT = "OPEN_COUNT"
         static let BEST_SCORE = "BEST_SCORE"
+        static let ROUNDS_SINCE_AD = "ROUNDS_SINCE_AD"
     }
 
     static var isIphoneFaceID: Bool {

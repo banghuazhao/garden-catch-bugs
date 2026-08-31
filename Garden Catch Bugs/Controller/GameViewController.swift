@@ -9,19 +9,6 @@
 import GameplayKit
 import SpriteKit
 import UIKit
-#if !targetEnvironment(macCatalyst)
-    import GoogleMobileAds
-#endif
-import SnapKit
-
-#if !targetEnvironment(macCatalyst)
-    var bannerView: GADBannerView = {
-        let bannerView = GADBannerView()
-        bannerView.adUnitID = Constants.bannerAdUnitID
-        bannerView.load(GADRequest())
-        return bannerView
-    }()
-#endif
 
 class GameViewController: UIViewController {
     override var prefersHomeIndicatorAutoHidden: Bool {
@@ -37,20 +24,11 @@ class GameViewController: UIViewController {
 //            skView.showsFPS = true
 //            skView.showsNodeCount = true
         #endif
-        skView.ignoresSiblingOrder = true
+        // Scene content is layered by parent/child order as well as zPosition, and this
+        // game is far too small to need the unordered fast path.
+        skView.ignoresSiblingOrder = false
         scene.scaleMode = .aspectFill
         skView.presentScene(scene)
-
-        #if !targetEnvironment(macCatalyst)
-            view.addSubview(bannerView)
-            bannerView.rootViewController = self
-            bannerView.snp.makeConstraints { make in
-                make.height.equalTo(50)
-                make.width.equalToSuperview()
-                make.bottom.equalToSuperview()
-                make.centerX.equalToSuperview()
-            }
-        #endif
     }
 
     override var prefersStatusBarHidden: Bool {
