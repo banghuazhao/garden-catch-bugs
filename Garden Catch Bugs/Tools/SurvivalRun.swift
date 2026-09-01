@@ -17,10 +17,18 @@ import Foundation
 struct SurvivalRun {
     static let startingLives = 3
     static let extraLifeInterval = 100
+    /// How far behind the player may fall before it costs a life.
+    static let missesPerLife = 5
 
     private(set) var score = 0
     private(set) var lives = SurvivalRun.startingLives
     private(set) var combo = 0
+    /// Net count of beneficial bugs that got away. Catching one pays this back,
+    /// so it measures whether the player is keeping up rather than counting
+    /// every bug they could not physically reach. Falling `missesPerLife`
+    /// behind costs a life; a player who ignores the game bleeds out fast,
+    /// while one who is keeping pace sits near zero.
+    private(set) var misses = 0
     private var nextExtraLifeAt = SurvivalRun.extraLifeInterval
 
     /// x1 below a 5-catch streak, then x2, x3 and x4. Any pest resets it, which
@@ -48,6 +56,7 @@ struct SurvivalRun {
 
         if kind.isFriendly {
             combo += 1
+            misses = max(0, misses - 1)
             gained = kind.points * multiplier
         } else {
             combo = 0
@@ -66,5 +75,21 @@ struct SurvivalRun {
         }
 
         return Outcome(pointsGained: gained, lostLife: !kind.isFriendly, gainedExtraLife: gainedExtraLife)
+    }
+
+    /// A beneficial bug crossed the playfield uncaught.
+    ///
+    /// This is what makes Survival a survival mode: without it the only threat
+    /// is self-inflicted, so a player who never touches the screen never loses
+    /// a life and the run lasts forever at zero points.
+    ///
+    /// Deliberately does not touch the combo. Missing a bug you could not reach
+    /// should not erase a clean streak; only grabbing a pest does that.
+    mutating func missFriendly() -> Bool {
+        misses += 1
+        guard misses >= Self.missesPerLife else { return false }
+        misses = 0
+        lives -= 1
+        return true
     }
 }

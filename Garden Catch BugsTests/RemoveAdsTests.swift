@@ -266,3 +266,77 @@ final class GameModeTests: XCTestCase {
         XCTAssertEqual(BugKind.friendlies.count + BugKind.pests.count, BugKind.allCases.count)
     }
 }
+
+// MARK: - Survival: escape pressure
+
+final class SurvivalEscapeTests: XCTestCase {
+    private let friendly = BugKind.bee
+    private let pest = BugKind.stinkBug
+
+    func testIdlePlayerCannotSurviveForever() {
+        var run = SurvivalRun()
+        var escapes = 0
+        // A player who never touches the screen: every beneficial bug gets away.
+        while !run.isOver {
+            _ = run.missFriendly()
+            escapes += 1
+            XCTAssertLessThan(escapes, 100, "An idle run must end, not loop forever.")
+        }
+        XCTAssertTrue(run.isOver)
+        XCTAssertEqual(run.score, 0)
+        XCTAssertEqual(escapes, SurvivalRun.missesPerLife * SurvivalRun.startingLives)
+    }
+
+    func testEveryFifthEscapeCostsALife() {
+        var run = SurvivalRun()
+        for _ in 0 ..< (SurvivalRun.missesPerLife - 1) {
+            XCTAssertFalse(run.missFriendly())
+        }
+        XCTAssertEqual(run.lives, SurvivalRun.startingLives)
+        XCTAssertTrue(run.missFriendly())
+        XCTAssertEqual(run.lives, SurvivalRun.startingLives - 1)
+    }
+
+    func testCatchingPaysBackAMiss() {
+        var run = SurvivalRun()
+        for _ in 0 ..< 4 { _ = run.missFriendly() }
+        XCTAssertEqual(run.misses, 4)
+
+        _ = run.capture(friendly)
+        XCTAssertEqual(run.misses, 3, "A catch should pay back one miss.")
+
+        // Still one short of the threshold, so no life is lost yet.
+        XCTAssertFalse(run.missFriendly())
+        XCTAssertEqual(run.lives, SurvivalRun.startingLives)
+    }
+
+    func testKeepingPaceNeverCostsALife() {
+        var run = SurvivalRun()
+        // Alternating a miss and a catch is a player holding even.
+        for _ in 0 ..< 60 {
+            _ = run.missFriendly()
+            _ = run.capture(friendly)
+        }
+        XCTAssertEqual(run.lives, SurvivalRun.startingLives + (run.score / SurvivalRun.extraLifeInterval))
+        XCTAssertFalse(run.isOver)
+        XCTAssertLessThanOrEqual(run.misses, 1)
+    }
+
+    func testMissesDoNotBreakTheCombo() {
+        var run = SurvivalRun()
+        for _ in 0 ..< 6 { _ = run.capture(friendly) }
+        XCTAssertEqual(run.multiplier, 2)
+
+        _ = run.missFriendly()
+
+        XCTAssertEqual(run.multiplier, 2, "An unreachable bug must not erase a clean streak.")
+        XCTAssertEqual(run.combo, 6)
+    }
+
+    func testCatchingAPestStillBreaksTheCombo() {
+        var run = SurvivalRun()
+        for _ in 0 ..< 6 { _ = run.capture(friendly) }
+        _ = run.capture(pest)
+        XCTAssertEqual(run.combo, 0)
+    }
+}

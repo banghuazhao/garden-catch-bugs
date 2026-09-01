@@ -815,8 +815,49 @@ extension GameScene {
         let speed = CGFloat.random(in: 300 ... 430) * difficultyMultiplier
         bug.run(.sequence([
             .move(to: destination, duration: TimeInterval(distance / speed)),
+            .run { [weak self, weak bug] in self?.bugEscaped(bug) },
             .removeFromParent(),
         ]), withKey: "travel")
+    }
+
+    /// A bug reached the far edge uncaught. `capture` clears the name and kills
+    /// the travel action, so anything still named here really did get away.
+    private func bugEscaped(_ bug: SKSpriteNode?) {
+        guard mode == .survival, !gameEnded,
+              let name = bug?.name,
+              let kind = BugKind(rawValue: name),
+              kind.isFriendly else { return }
+
+        let costLife = run.missFriendly()
+        if let position = bug?.position {
+            addEscapeMark(at: position)
+        }
+        if costLife {
+            flashDanger()
+            lives = run.lives
+            if run.isOver { endRound() }
+        }
+    }
+
+    /// A small mark where a beneficial bug slipped away, so the rule is
+    /// learnable without a tutorial.
+    private func addEscapeMark(at position: CGPoint) {
+        let mark = SKLabelNode(fontNamed: "AvenirNext-Heavy")
+        mark.text = "!"
+        mark.fontColor = GardenPalette.coral
+        mark.fontSize = 54
+        mark.verticalAlignmentMode = .center
+        mark.horizontalAlignmentMode = .center
+        // Pull it inside the frame so an edge escape is still visible.
+        mark.position = CGPoint(
+            x: min(max(position.x, 60), size.width - 60),
+            y: min(max(position.y, playableRect.minY + 60), topLimit - 60))
+        mark.zPosition = 3
+        effectsNode.addChild(mark)
+        mark.run(.sequence([
+            .group([.fadeOut(withDuration: 0.5), .moveBy(x: 0, y: 40, duration: 0.5)]),
+            .removeFromParent(),
+        ]))
     }
 
     /// Bugs speed up gently as the round runs down.

@@ -110,7 +110,7 @@ extension GameOverScene {
         modeLabel.fontSize = 34
         modeLabel.verticalAlignmentMode = .center
         modeLabel.horizontalAlignmentMode = .center
-        modeLabel.position = CGPoint(x: 0, y: 272)
+        modeLabel.position = CGPoint(x: 0, y: 292)
         modeLabel.zPosition = 1
         panel.addChild(modeLabel)
 
