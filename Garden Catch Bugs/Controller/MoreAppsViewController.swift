@@ -31,20 +31,30 @@ class MoreAppsViewController: UIViewController {
 
         let appItems = [
             AppItem(
-                title: "Image Guru".localized(),
-                detail: "Photo Editor,Filter".localized(),
-                icon: UIImage(named: "image_guru"),
-                url: URL(string: "http://itunes.apple.com/app/id1625021625")),
+                title: "Memory Game".localized(),
+                detail: "Match Pairs Card Game".localized(),
+                icon: UIImage(named: "memory_game"),
+                url: URL(string: "http://itunes.apple.com/app/id1617593078")),
             AppItem(
-                title: "Sudoku Lover".localized(),
-                detail: "Sudoku Lover".localized(),
-                icon: UIImage(named: "sudoku_lover"),
-                url: URL(string: "http://itunes.apple.com/app/id1620749798")),
+                title: "Falling Block Puzzle".localized(),
+                detail: "Retro Block Puzzle Game".localized(),
+                icon: UIImage(named: "falling_block_puzzle"),
+                url: URL(string: "http://itunes.apple.com/app/id1609440799")),
+            AppItem(
+                title: "Magic Tower".localized(),
+                detail: "50 Floors Puzzle RPG".localized(),
+                icon: UIImage(named: "magic_tower"),
+                url: URL(string: "http://itunes.apple.com/app/id6800118545")),
             AppItem(
                 title: "We Play Piano".localized(),
                 detail: "Piano Keyboard".localized(),
                 icon: UIImage(named: "we_play_piano"),
                 url: URL(string: "http://itunes.apple.com/app/id1625018611")),
+            AppItem(
+                title: "Sudoku Lover".localized(),
+                detail: "Sudoku Lover".localized(),
+                icon: UIImage(named: "sudoku_lover"),
+                url: URL(string: "http://itunes.apple.com/app/id1620749798")),
             AppItem(
                 title: "Saving Ambulance!Sliding Block".localized(),
                 detail: "Sliding Puzzle With Cars".localized(),

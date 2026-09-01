@@ -12,8 +12,6 @@
 
 "Check out more Apps made by us" = "发现更多我们的 App";
 
-"Image Guru" = "咕噜滤镜";
-"Photo Editor,Filter" = "多风格修图,调色,相片编辑";
 
 "Relaxing_Up" = "冥想Up";
 "Meditation&Healing" = "放松减压,深度睡眠专注力训练";
@@ -84,3 +82,11 @@
 "Nothing to Restore" = "没有可恢复的购买";
 "No previous purchase was found for this Apple Account." = "未找到此 Apple 账户的历史购买记录。";
 "OK" = "好";
+
+/* 更多应用条目 */
+"Memory Game" = "记忆翻牌";
+"Match Pairs Card Game" = "配对记忆卡牌游戏";
+"Falling Block Puzzle" = "经典方块";
+"Retro Block Puzzle Game" = "复古俄罗斯方块益智游戏";
+"Magic Tower" = "魔塔";
+"50 Floors Puzzle RPG" = "50层解谜冒险RPG";
