@@ -255,11 +255,18 @@ extension MainMenuScene {
         dimmer.zPosition = 0
         overlay.addChild(dimmer)
 
+        // Fit the card into the space that is actually usable, so its Back
+        // button cannot end up behind the banner or under a home indicator.
+        let content = safeContentRect(reservingBottom: sceneBannerHeight() + MainMenuScene.edgePadding)
         let helpCard = SKSpriteNode(imageNamed: "helpMenu")
-        helpCard.position = CGPoint(x: size.width / 2, y: size.height / 2 + 30)
         helpCard.name = "helpCard"
         helpCard.zPosition = 1
-        helpCard.setScale(0.76)
+        let fit = min(
+            content.width / helpCard.size.width,
+            content.height / helpCard.size.height,
+            0.76)
+        helpCard.setScale(fit)
+        helpCard.position = CGPoint(x: content.midX, y: content.midY)
         overlay.addChild(helpCard)
 
         let back = makeMenuButton(
