@@ -36,6 +36,7 @@ final class MainMenuScene: SKScene {
     private var modalIsVisible = false
     private let menuNode = SKNode()
     private let showcaseNode = SKNode()
+    private weak var helpCardNode: SKSpriteNode?
 
     override func didMove(to view: SKView) {
         setGameBannerHidden(false)
@@ -76,17 +77,25 @@ final class MainMenuScene: SKScene {
     }
 
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
-        guard let touch = touches.first,
-              let control = namedControl(at: touch.location(in: self)) else { return }
+        guard let touch = touches.first else { return }
+        let location = touch.location(in: self)
+        let control = namedControl(at: location)
 
         if modalIsVisible {
-            guard control.name == "backButton" else { return }
-            animateButtonPress(control)
-            playSoundEffect(tapButtonSound)
-            hideHelp()
+            if let control, control.name == "helpCloseButton" {
+                animateButtonPress(control)
+                playSoundEffect(tapButtonSound)
+                hideHelp()
+            } else if let card = helpCardNode, !card.frame.contains(location) {
+                // Tapping away from the dialog dismisses it too, so missing the
+                // close button can never leave the player stuck in the modal.
+                playSoundEffect(tapButtonSound)
+                hideHelp()
+            }
             return
         }
 
+        guard let control else { return }
         switch control.name {
         case "startButton":
             startGame(mode: .classic, from: control)
@@ -174,6 +183,37 @@ extension MainMenuScene {
             button.zPosition = 1
             menu.addChild(button)
         }
+    }
+
+    private static let closeRadius: CGFloat = 68
+    private static let closeInset: CGFloat = 64
+
+    /// Round close control for the trailing top corner of a dialog.
+    private func makeCloseButton(name: String, position: CGPoint) -> SKShapeNode {
+        let button = SKShapeNode(circleOfRadius: MainMenuScene.closeRadius)
+        button.name = name
+        button.position = position
+        button.fillColor = MenuPalette.ink
+        button.strokeColor = MenuPalette.cream.withAlphaComponent(0.85)
+        button.lineWidth = 4
+
+        let glyph = SKLabelNode(fontNamed: "AvenirNext-Heavy")
+        glyph.text = "✕"
+        glyph.fontColor = MenuPalette.cream
+        glyph.fontSize = 52
+        glyph.verticalAlignmentMode = .center
+        glyph.horizontalAlignmentMode = .center
+        glyph.position = .zero
+        glyph.zPosition = 1
+        button.addChild(glyph)
+
+        button.run(.sequence([
+            .scale(to: 0.01, duration: 0),
+            .wait(forDuration: 0.1),
+            .scale(to: 1.12, duration: 0.16),
+            .scale(to: 1, duration: 0.1),
+        ]))
+        return button
     }
 
     private func makeMenuButton(name: String, title: String, color: SKColor, position: CGPoint) -> SKShapeNode {
@@ -268,15 +308,18 @@ extension MainMenuScene {
         helpCard.setScale(fit)
         helpCard.position = CGPoint(x: content.midX, y: content.midY)
         overlay.addChild(helpCard)
+        helpCardNode = helpCard
 
-        let back = makeMenuButton(
-            name: "backButton",
-            title: "Back".localized(),
-            color: MenuPalette.leaf,
-            position: CGPoint(x: 0, y: -370))
-        back.zPosition = 1
-        back.setScale(0.78)
-        helpCard.addChild(back)
+        // Sibling of the card rather than a child, so the close target keeps a
+        // consistent on-screen size however far the card had to scale down.
+        let renderedSize = CGSize(width: helpCard.size.width * fit, height: helpCard.size.height * fit)
+        let close = makeCloseButton(
+            name: "helpCloseButton",
+            position: CGPoint(
+                x: helpCard.position.x + renderedSize.width / 2 - MainMenuScene.closeInset,
+                y: helpCard.position.y + renderedSize.height / 2 - MainMenuScene.closeInset))
+        close.zPosition = 2
+        overlay.addChild(close)
 
         helpCard.run(.sequence([
             .scale(to: 1.04, duration: 0.18),
@@ -316,7 +359,7 @@ extension MainMenuScene {
         for node in nodes(at: location) {
             var candidate: SKNode? = node
             while let current = candidate {
-                if ["startButton", "survivalButton", "helpButton", "settingsButton", "backButton"].contains(current.name ?? "") {
+                if ["startButton", "survivalButton", "helpButton", "settingsButton", "helpCloseButton"].contains(current.name ?? "") {
                     return current
                 }
                 candidate = current.parent
