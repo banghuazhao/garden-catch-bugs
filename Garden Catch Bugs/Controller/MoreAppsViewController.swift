@@ -203,6 +203,16 @@ class MoreAppsViewController: UIViewController {
 }
 
 extension MoreAppsViewController {
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        #if !targetEnvironment(macCatalyst)
+            // Let the list scroll clear of the banner instead of ending under it.
+            let clearance = bannerView.superview == nil ? 0 : bannerView.bounds.height + 12
+            tableView.contentInset.bottom = clearance
+            tableView.verticalScrollIndicatorInsets.bottom = clearance
+        #endif
+    }
+
     @objc func backToHome() {
         dismiss(animated: true, completion: nil)
     }

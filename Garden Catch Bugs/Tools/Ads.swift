@@ -47,6 +47,8 @@ func requestATTPermission() {
     /// first request goes out. The request is repeated when the width actually
     /// changes (rotation, iPad multitasking) and not on every layout pass.
     final class AdaptiveBannerView: GADBannerView {
+        static let maxHeight: CGFloat = 50
+
         private var requestedWidth: CGFloat = 0
 
         convenience init(rootViewController: UIViewController) {
@@ -71,7 +73,11 @@ func requestATTPermission() {
             let width = superview?.bounds.width ?? bounds.width
             guard width > 0, abs(width - requestedWidth) > 1 else { return }
             requestedWidth = width
-            adSize = GADCurrentOrientationAnchoredAdaptiveBannerAdSizeWithWidth(width)
+            // Anchored adaptive picks its own height, which reaches ~90pt on
+            // iPad and eats the bottom of the playfield. Inline adaptive takes
+            // a ceiling, so the banner still spans the full width but never
+            // exceeds the standard 50pt bar.
+            adSize = GADInlineAdaptiveBannerAdSizeWithWidthAndMaxHeight(width, AdaptiveBannerView.maxHeight)
             load(GADRequest())
         }
     }

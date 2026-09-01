@@ -40,6 +40,11 @@ var backgroundMusicPlayer: AVAudioPlayer?
 /// when the player turns it back on or returns from the background.
 private var currentTrack: (filename: String, repeatForever: Bool)?
 
+/// Set while something in the app deliberately wants silence -- currently the
+/// in-game pause panel. Returning from the background must not override it and
+/// start music playing behind a paused round.
+var backgroundMusicHeld = false
+
 func playBackgroundMusic(filename: String, repeatForever: Bool) {
     currentTrack = (filename, repeatForever)
     guard AudioSettings.isMusicEnabled else {
@@ -68,7 +73,7 @@ func pauseBackgroundMusic() {
 }
 
 func resumeBackgroundMusic() {
-    guard AudioSettings.isMusicEnabled else { return }
+    guard AudioSettings.isMusicEnabled, !backgroundMusicHeld else { return }
     if let player = backgroundMusicPlayer {
         player.play()
     } else if let track = currentTrack {
@@ -85,6 +90,7 @@ func stopBackgroundMusic() {
 /// the previous scene's music after leaving it.
 func endBackgroundMusic() {
     currentTrack = nil
+    backgroundMusicHeld = false
     stopBackgroundMusic()
 }
 

@@ -34,6 +34,8 @@ private enum MenuPalette {
 
 final class MainMenuScene: SKScene {
     private var modalIsVisible = false
+    private let menuNode = SKNode()
+    private let showcaseNode = SKNode()
 
     override func didMove(to view: SKView) {
         setGameBannerHidden(false)
@@ -47,6 +49,30 @@ final class MainMenuScene: SKScene {
 
         buildMenu(in: background)
         addShowcaseBugs(to: background)
+        applySafeAreaLayout()
+        // `safeAreaInsets` is still zero while didMove runs -- the view has not
+        // laid out yet -- so the real values only arrive on the next tick.
+        DispatchQueue.main.async { [weak self] in self?.applySafeAreaLayout() }
+    }
+
+    override func didChangeSize(_ oldSize: CGSize) {
+        super.didChangeSize(oldSize)
+        applySafeAreaLayout()
+    }
+
+    /// Keeps the menu clear of a notch on the leading edge and the showcase
+    /// clear of one on the trailing edge, in whichever orientation the device
+    /// happens to be held.
+    private func applySafeAreaLayout() {
+        let insets = sceneSafeAreaInsets()
+
+        let halfWidth = MainMenuScene.panelSize.width / 2
+        let minimumCentre = insets.left + MainMenuScene.edgePadding + halfWidth
+        menuNode.position = CGPoint(x: max(minimumCentre, 484) - size.width / 2, y: -20)
+
+        let rightmostBugEdge = size.width / 2 + 750 + 60
+        let trailingLimit = size.width - insets.right - MainMenuScene.edgePadding
+        showcaseNode.position = CGPoint(x: min(0, trailingLimit - rightmostBugEdge), y: 0)
     }
 
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
@@ -85,15 +111,24 @@ final class MainMenuScene: SKScene {
 // MARK: - Menu layout
 
 extension MainMenuScene {
+    private static let panelSize = CGSize(width: 900, height: 380)
+    /// Breathing room between the safe area and the panel edge.
+    private static let edgePadding: CGFloat = 40
+
     private func buildMenu(in background: SKSpriteNode) {
-        let panel = SKShapeNode(rectOf: CGSize(width: 900, height: 380), cornerRadius: 48)
-        panel.position = CGPoint(x: -540, y: -20)
+        // Everything in the menu block lives inside this node, so the whole
+        // group can be nudged clear of a notch in one place.
+        let menu = menuNode
+        menu.zPosition = 1
+        background.addChild(menu)
+
+        let panel = SKShapeNode(rectOf: MainMenuScene.panelSize, cornerRadius: 48)
+        panel.position = .zero
         panel.fillColor = MenuPalette.forest
         panel.strokeColor = MenuPalette.mint.withAlphaComponent(0.50)
         panel.lineWidth = 4
-        panel.zPosition = 1
         panel.setScale(0.92)
-        background.addChild(panel)
+        menu.addChild(panel)
         panel.run(.sequence([
             .wait(forDuration: 0.08),
             .scale(to: 1.02, duration: 0.26),
@@ -111,8 +146,8 @@ extension MainMenuScene {
         ])), withKey: "titleFloat")
 
         // 2x2 grid inside the panel: play modes on top, everything else below.
-        let columnX: [CGFloat] = [-750, -330]
-        let rowY: [CGFloat] = [50, -90]
+        let columnX: [CGFloat] = [-210, 210]
+        let rowY: [CGFloat] = [70, -70]
         let buttons = [
             makeMenuButton(
                 name: "startButton",
@@ -136,8 +171,8 @@ extension MainMenuScene {
                 position: CGPoint(x: columnX[1], y: rowY[1])),
         ]
         buttons.forEach { button in
-            button.zPosition = 3
-            background.addChild(button)
+            button.zPosition = 1
+            menu.addChild(button)
         }
     }
 
@@ -171,13 +206,16 @@ extension MainMenuScene {
             ("stinkbug_1", stinkBugAnimation, CGPoint(x: 750, y: -218), 0.72, 1.05),
         ]
 
+        let showcase = showcaseNode
+        showcase.zPosition = 2
+        background.addChild(showcase)
+
         for (imageName, animation, position, scale, delay) in bugs {
             let bug = SKSpriteNode(imageNamed: imageName)
             bug.position = position
-            bug.zPosition = 2
             bug.setScale(scale)
             bug.alpha = 0
-            background.addChild(bug)
+            showcase.addChild(bug)
             bug.run(.repeatForever(animation), withKey: "flutter")
             bug.run(.sequence([
                 .wait(forDuration: delay),

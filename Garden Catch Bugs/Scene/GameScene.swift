@@ -532,17 +532,25 @@ extension GameScene {
         addChild(hudNode)
         let hudY = playableRect.maxY - 78
 
-        let strip = SKShapeNode(rectOf: CGSize(width: size.width - 64, height: 122), cornerRadius: 34)
-        strip.position = CGPoint(x: size.width / 2, y: hudY)
+        let insets = sceneSafeAreaInsets()
+        let hudLeft = insets.left + 32
+        let hudRight = size.width - insets.right - 32
+        let hudWidth = hudRight - hudLeft
+        let hudCentreX = (hudLeft + hudRight) / 2
+
+        let strip = SKShapeNode(rectOf: CGSize(width: hudWidth, height: 122), cornerRadius: 34)
+        strip.position = CGPoint(x: hudCentreX, y: hudY)
         strip.fillColor = GardenPalette.forest
         strip.strokeColor = GardenPalette.mint.withAlphaComponent(0.35)
         strip.lineWidth = 3
         strip.zPosition = 0
         hudNode.addChild(strip)
 
-        let scoreCard = makeHUDCard(center: CGPoint(x: 218, y: hudY), size: CGSize(width: 326, height: 88))
-        let bestCard = makeHUDCard(center: CGPoint(x: size.width / 2, y: hudY), size: CGSize(width: 400, height: 88))
-        let timeCard = makeHUDCard(center: CGPoint(x: size.width - 292, y: hudY), size: CGSize(width: 270, height: 88))
+        // Anchor the row to the safe strip rather than the raw scene edges.
+        let pauseX = hudRight - 56
+        let scoreCard = makeHUDCard(center: CGPoint(x: hudLeft + 186, y: hudY), size: CGSize(width: 326, height: 88))
+        let bestCard = makeHUDCard(center: CGPoint(x: hudCentreX, y: hudY), size: CGSize(width: 400, height: 88))
+        let timeCard = makeHUDCard(center: CGPoint(x: pauseX - 56 - 147, y: hudY), size: CGSize(width: 270, height: 88))
         [scoreCard, bestCard, timeCard].forEach { card in
             card.zPosition = 1
             hudNode.addChild(card)
@@ -584,7 +592,7 @@ extension GameScene {
         hudNode.addChild(comboLabel)
 
         let pauseButton = SKShapeNode(circleOfRadius: 44)
-        pauseButton.position = CGPoint(x: size.width - 78, y: hudY)
+        pauseButton.position = CGPoint(x: pauseX, y: hudY)
         pauseButton.name = "pauseButton"
         pauseButton.fillColor = GardenPalette.leaf
         pauseButton.strokeColor = GardenPalette.mint
@@ -895,6 +903,7 @@ extension GameScene {
         setWorldFrozen(true)
         hideNet()
         lastSlicePoint = nil
+        backgroundMusicHeld = true
         pauseBackgroundMusic()
 
         let overlay = SKNode()
@@ -967,6 +976,7 @@ extension GameScene {
         gameLayerNode.speed = 1
         setWorldFrozen(false)
         lastUpdateTime = 0
+        backgroundMusicHeld = false
         resumeBackgroundMusic()
 
         let overlay = pauseOverlay

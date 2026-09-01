@@ -52,6 +52,11 @@ class SettingsViewController: UIViewController {
         label.text = "Settings".localized()
     }
 
+    lazy var scrollView = UIScrollView().then { scrollView in
+        scrollView.alwaysBounceVertical = true
+        scrollView.showsVerticalScrollIndicator = false
+    }
+
     lazy var card = UIView().then { view in
         view.backgroundColor = UIColor.white.withAlphaComponent(0.82)
         view.layer.cornerRadius = 18
@@ -97,7 +102,8 @@ class SettingsViewController: UIViewController {
         view.backgroundColor = UIColor(patternImage: UIImage(named: "bg_2048x1536")!)
         view.addSubview(backButton)
         view.addSubview(titleLabel)
-        view.addSubview(card)
+        view.addSubview(scrollView)
+        scrollView.addSubview(card)
         card.addSubview(stack)
         view.addSubview(spinner)
 
@@ -124,17 +130,25 @@ class SettingsViewController: UIViewController {
             make.centerX.equalToSuperview()
             make.top.equalTo(view.safeAreaLayoutGuide).offset(20)
         }
+        // The content scrolls so a short landscape screen -- or the banner
+        // sitting over the bottom of it -- can never make a row unreachable.
+        scrollView.snp.makeConstraints { make in
+            make.top.equalTo(titleLabel.snp.bottom).offset(16)
+            make.left.right.equalTo(view.safeAreaLayoutGuide)
+            make.bottom.equalToSuperview()
+        }
         card.snp.makeConstraints { make in
-            make.top.equalTo(titleLabel.snp.bottom).offset(24)
-            make.centerX.equalToSuperview()
-            make.width.equalToSuperview().multipliedBy(0.7).priority(.high)
+            make.top.equalTo(scrollView.contentLayoutGuide).offset(8)
+            make.bottom.equalTo(scrollView.contentLayoutGuide).offset(-8)
+            make.centerX.equalTo(scrollView.frameLayoutGuide)
+            make.width.equalTo(scrollView.frameLayoutGuide).multipliedBy(0.7).priority(.high)
             make.width.lessThanOrEqualTo(520)
         }
         stack.snp.makeConstraints { make in
             make.edges.equalToSuperview()
         }
         spinner.snp.makeConstraints { make in
-            make.center.equalTo(card)
+            make.center.equalTo(scrollView.frameLayoutGuide)
         }
 
         entitlementObserver = NotificationCenter.default.addObserver(
@@ -256,6 +270,15 @@ extension SettingsViewController {
         busy ? spinner.startAnimating() : spinner.stopAnimating()
         card.alpha = busy ? 0.5 : 1
         card.isUserInteractionEnabled = !busy
+    }
+
+    /// Keep the last row clear of the banner rather than letting it sit under.
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        let bannerHeight = settingsBanner?.bounds.height ?? 0
+        let clearance = bannerHeight + (bannerHeight > 0 ? 12 : 0)
+        scrollView.contentInset.bottom = clearance
+        scrollView.verticalScrollIndicatorInsets.bottom = clearance
     }
 
     private func showMessage(_ title: String, _ message: String) {

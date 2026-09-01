@@ -340,3 +340,72 @@ final class SurvivalEscapeTests: XCTestCase {
         XCTAssertEqual(run.combo, 0)
     }
 }
+
+// MARK: - Background music lifecycle
+
+/// Drives the real AVAudioPlayer against the bundled track, since the bug this
+/// covers was music continuing to play after the app was backgrounded.
+final class BackgroundMusicTests: XCTestCase {
+    private let track = "首页音乐.mp3"
+    private var musicWasEnabled = true
+
+    override func setUp() {
+        super.setUp()
+        musicWasEnabled = AudioSettings.isMusicEnabled
+        AudioSettings.isMusicEnabled = true
+        backgroundMusicHeld = false
+    }
+
+    override func tearDown() {
+        endBackgroundMusic()
+        AudioSettings.isMusicEnabled = musicWasEnabled
+        backgroundMusicHeld = false
+        super.tearDown()
+    }
+
+    func testResignActivePausesAndBecomingActiveResumes() {
+        playBackgroundMusic(filename: track, repeatForever: true)
+        XCTAssertEqual(backgroundMusicPlayer?.isPlaying, true)
+
+        pauseBackgroundMusic()
+        XCTAssertNotEqual(backgroundMusicPlayer?.isPlaying, true, "Backgrounding must silence music.")
+
+        resumeBackgroundMusic()
+        XCTAssertEqual(backgroundMusicPlayer?.isPlaying, true)
+    }
+
+    func testForegroundingDoesNotRestartMusicBehindAPausedRound() {
+        playBackgroundMusic(filename: track, repeatForever: true)
+
+        // What GameScene.pauseGame does.
+        backgroundMusicHeld = true
+        pauseBackgroundMusic()
+
+        // What AppDelegate.applicationDidBecomeActive does.
+        resumeBackgroundMusic()
+
+        XCTAssertNotEqual(backgroundMusicPlayer?.isPlaying, true,
+                          "A paused round must stay silent after returning from the background.")
+
+        backgroundMusicHeld = false
+        resumeBackgroundMusic()
+        XCTAssertEqual(backgroundMusicPlayer?.isPlaying, true)
+    }
+
+    func testMutedPlayerNeverGetsMusicBack() {
+        AudioSettings.isMusicEnabled = false
+        playBackgroundMusic(filename: track, repeatForever: true)
+        XCTAssertNil(backgroundMusicPlayer)
+
+        resumeBackgroundMusic()
+        XCTAssertNil(backgroundMusicPlayer, "Foregrounding must not override the music setting.")
+    }
+
+    func testLeavingASceneClearsTheHold() {
+        playBackgroundMusic(filename: track, repeatForever: true)
+        backgroundMusicHeld = true
+        endBackgroundMusic()
+        XCTAssertFalse(backgroundMusicHeld)
+        XCTAssertNil(backgroundMusicPlayer)
+    }
+}
