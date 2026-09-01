@@ -156,11 +156,23 @@ class MoreAppsViewController: UIViewController {
         view.addSubview(tableView)
 
         #if !targetEnvironment(macCatalyst)
-            view.addSubview(bannerView)
-            bannerView.snp.makeConstraints { make in
-                make.bottom.equalTo(view.safeAreaLayoutGuide)
-                make.left.right.equalToSuperview()
-                make.height.equalTo(50)
+            if adsAllowed {
+                view.addSubview(bannerView)
+                bannerView.snp.makeConstraints { make in
+                    make.bottom.equalTo(view.safeAreaLayoutGuide)
+                    make.left.right.equalToSuperview()
+                    make.height.equalTo(50)
+                }
+            }
+            NotificationCenter.default.addObserver(
+                forName: .adsEntitlementDidChange,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                MainActor.assumeIsolated {
+                    guard let self, !adsAllowed else { return }
+                    self.bannerView.removeFromSuperview()
+                }
             }
         #endif
 

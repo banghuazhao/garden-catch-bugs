@@ -69,3 +69,20 @@
 "Start" = "開始";
 "Time" = "時間";
 "Your best score is" = "你的最高得分是";
+
+/* 內購：移除廣告 */
+"Remove Ads" = "移除廣告";
+"Ads Removed" = "廣告已移除";
+"Restore Purchases" = "回復購買";
+"Unavailable" = "暫不可用";
+"Remove Ads is unavailable right now. Please try again later." = "移除廣告暫時無法使用，請稍後再試。";
+"Thanks! Ads are gone for good." = "謝謝！廣告已永久移除。";
+"Waiting for Approval" = "等待批准";
+"Your purchase needs approval before it can finish." = "您的購買需要獲得批准後才能完成。";
+"Purchase Failed" = "購買失敗";
+"Something went wrong. Please try again." = "發生問題，請再試一次。";
+"Purchases Restored" = "購買已回復";
+"Your purchase has been restored." = "您的購買已回復。";
+"Nothing to Restore" = "沒有可回復的購買";
+"No previous purchase was found for this Apple Account." = "找不到此 Apple 帳戶的過往購買記錄。";
+"OK" = "好";

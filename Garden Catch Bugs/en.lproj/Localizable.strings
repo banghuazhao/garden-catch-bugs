@@ -22,3 +22,20 @@
 "Start" = "Start";
 "Time" = "Time";
 "Your best score is" = "Your best score is"; 
+
+/* In-app purchase: Remove Ads */
+"Remove Ads" = "Remove Ads";
+"Ads Removed" = "Ads Removed";
+"Restore Purchases" = "Restore Purchases";
+"Unavailable" = "Unavailable";
+"Remove Ads is unavailable right now. Please try again later." = "Remove Ads is unavailable right now. Please try again later.";
+"Thanks! Ads are gone for good." = "Thanks! Ads are gone for good.";
+"Waiting for Approval" = "Waiting for Approval";
+"Your purchase needs approval before it can finish." = "Your purchase needs approval before it can finish.";
+"Purchase Failed" = "Purchase Failed";
+"Something went wrong. Please try again." = "Something went wrong. Please try again.";
+"Purchases Restored" = "Purchases Restored";
+"Your purchase has been restored." = "Your purchase has been restored.";
+"Nothing to Restore" = "Nothing to Restore";
+"No previous purchase was found for this Apple Account." = "No previous purchase was found for this Apple Account.";
+"OK" = "OK";

@@ -31,10 +31,20 @@ class GameViewController: UIViewController {
         skView.presentScene(scene)
 
         #if !targetEnvironment(macCatalyst)
-            let banner = AdaptiveBannerView(rootViewController: self)
-            banner.pinToBottom(of: view, safeArea: view.safeAreaLayoutGuide)
-            gameBannerView = banner
+            if adsAllowed {
+                let banner = AdaptiveBannerView(rootViewController: self)
+                banner.pinToBottom(of: view, safeArea: view.safeAreaLayoutGuide)
+                gameBannerView = banner
+            }
         #endif
+
+        NotificationCenter.default.addObserver(
+            forName: .adsEntitlementDidChange,
+            object: nil,
+            queue: .main
+        ) { _ in
+            MainActor.assumeIsolated { removeGameBannerIfPurchased() }
+        }
     }
 
     override var prefersStatusBarHidden: Bool {

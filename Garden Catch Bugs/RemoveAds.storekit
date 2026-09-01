@@ -1,0 +1,29 @@
+{
+  "identifier": "6ADD1F0F-3C20-4C77-BEE5-422AAB1309AC",
+  "nonRenewingSubscriptions": [],
+  "products": [
+    {
+      "displayPrice": "1.99",
+      "familyShareable": false,
+      "internalID": "60A1651F-89C7-47A5-9A6A-2B5581EBA0C6",
+      "localizations": [
+        {
+          "description": "Remove ads permanently from this app.",
+          "displayName": "Remove Ads",
+          "locale": "en_US"
+        }
+      ],
+      "productID": "com.Banghua_Zhao.Garden_Catch_Bugs.remove_ads",
+      "referenceName": "Remove Ads",
+      "type": "NonConsumable"
+    }
+  ],
+  "settings": {
+    "_applicationInternalID": "1514979792"
+  },
+  "subscriptionGroups": [],
+  "version": {
+    "major": 3,
+    "minor": 0
+  }
+}

@@ -80,10 +80,37 @@ func requestATTPermission() {
     weak var gameBannerView: AdaptiveBannerView?
 #endif
 
+/// The one rule every ad entry point consults: no SDK start, no load, no
+/// display, and no reserved layout space once the shopper has bought removal.
+///
+/// Takes the controller as a parameter so the rule itself can be tested without
+/// the singleton; `adsAllowed` is the app-wide convenience over it.
+@MainActor
+func areAdsAllowed(for purchases: PurchaseControlling) -> Bool {
+    !purchases.isAdsRemoved
+}
+
+@MainActor
+var adsAllowed: Bool {
+    areAdsAllowed(for: PurchaseController.shared)
+}
+
 /// Shows or hides the banner that sits behind the SpriteKit scenes. Scenes call
 /// this without caring whether ads are compiled in.
+@MainActor
 func setGameBannerHidden(_ hidden: Bool) {
     #if !targetEnvironment(macCatalyst)
-        gameBannerView?.isHidden = hidden
+        gameBannerView?.isHidden = hidden || !adsAllowed
+    #endif
+}
+
+/// Tears the shared banner out of the hierarchy the moment the entitlement
+/// arrives, so a purchase mid-session does not leave an ad on screen.
+@MainActor
+func removeGameBannerIfPurchased() {
+    #if !targetEnvironment(macCatalyst)
+        guard !adsAllowed else { return }
+        gameBannerView?.removeFromSuperview()
+        gameBannerView = nil
     #endif
 }

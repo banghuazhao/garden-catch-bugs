@@ -15,6 +15,8 @@
 		9971C88825F920A4008CFCF9 /* UIFont+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9971C88725F920A4008CFCF9 /* UIFont+Extension.swift */; };
 		9971C88C25FA4CA4008CFCF9 /* Ads.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9971C88B25FA4CA4008CFCF9 /* Ads.swift */; };
 		9971C88F25FA4CAC008CFCF9 /* MoreAppsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9971C88E25FA4CAC008CFCF9 /* MoreAppsViewController.swift */; };
+		99C0FFEE2D0100000000B004 /* PurchaseController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99C0FFEE2D0100000000B003 /* PurchaseController.swift */; };
+		99C0FFEE2D0100000000B002 /* AdsEntitlement.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99C0FFEE2D0100000000B001 /* AdsEntitlement.swift */; };
 		99C0FFEE2D0100000000A002 /* SettingsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99C0FFEE2D0100000000A001 /* SettingsViewController.swift */; };
 		9971C89625FA4D02008CFCF9 /* AppItemCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9971C89225FA4CBC008CFCF9 /* AppItemCell.swift */; };
 		9971C89725FA4D02008CFCF9 /* MoreAppsHeaderCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9971C89125FA4CBB008CFCF9 /* MoreAppsHeaderCell.swift */; };
@@ -38,7 +40,19 @@
 		99809EFB247D64DC006FF9A5 /* 游戏音乐.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 99809EF7247D64DC006FF9A5 /* 游戏音乐.mp3 */; };
 		99809EFC247D64DC006FF9A5 /* 抓到害虫.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 99809EF8247D64DC006FF9A5 /* 抓到害虫.mp3 */; };
 		99809EFD247D64DC006FF9A5 /* 抓到益虫.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 99809EF9247D64DC006FF9A5 /* 抓到益虫.mp3 */; };
+		99C0FFEE2D0100000000C00D /* FakePurchaseController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99C0FFEE2D0100000000C00C /* FakePurchaseController.swift */; };
+		99C0FFEE2D0100000000C00F /* RemoveAdsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99C0FFEE2D0100000000C00E /* RemoveAdsTests.swift */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		99C0FFEE2D0100000000C00B /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 99809E79247A009A006FF9A5 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 99809E80247A009A006FF9A5;
+			remoteInfo = "Garden Catch Bugs";
+		};
+/* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
 		996FDBE8248BDC8B0053BEFD /* fr */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = fr; path = fr.lproj/InfoPlist.strings; sourceTree = "<group>"; };
@@ -49,6 +63,8 @@
 		9971C88725F920A4008CFCF9 /* UIFont+Extension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UIFont+Extension.swift"; sourceTree = "<group>"; };
 		9971C88B25FA4CA4008CFCF9 /* Ads.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Ads.swift; sourceTree = "<group>"; };
 		9971C88E25FA4CAC008CFCF9 /* MoreAppsViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoreAppsViewController.swift; sourceTree = "<group>"; };
+		99C0FFEE2D0100000000B003 /* PurchaseController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PurchaseController.swift; sourceTree = "<group>"; };
+		99C0FFEE2D0100000000B001 /* AdsEntitlement.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdsEntitlement.swift; sourceTree = "<group>"; };
 		99C0FFEE2D0100000000A001 /* SettingsViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsViewController.swift; sourceTree = "<group>"; };
 		9971C89125FA4CBB008CFCF9 /* MoreAppsHeaderCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoreAppsHeaderCell.swift; sourceTree = "<group>"; };
 		9971C89225FA4CBC008CFCF9 /* AppItemCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppItemCell.swift; sourceTree = "<group>"; };
@@ -78,6 +94,10 @@
 		99809EF7247D64DC006FF9A5 /* 游戏音乐.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = "游戏音乐.mp3"; sourceTree = "<group>"; };
 		99809EF8247D64DC006FF9A5 /* 抓到害虫.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = "抓到害虫.mp3"; sourceTree = "<group>"; };
 		99809EF9247D64DC006FF9A5 /* 抓到益虫.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = "抓到益虫.mp3"; sourceTree = "<group>"; };
+		99C0FFEE2D0100000000C002 /* Garden Catch BugsTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Garden Catch BugsTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		99C0FFEE2D0100000000C00C /* FakePurchaseController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FakePurchaseController.swift; sourceTree = "<group>"; };
+		99C0FFEE2D0100000000C00E /* RemoveAdsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoveAdsTests.swift; sourceTree = "<group>"; };
+		99C0FFEE2D0100000000D001 /* RemoveAds.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = RemoveAds.storekit; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -96,6 +116,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		99C0FFEE2D0100000000C005 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -110,6 +137,7 @@
 		99809E78247A009A006FF9A5 = {
 			isa = PBXGroup;
 			children = (
+				99C0FFEE2D0100000000C003 /* Garden Catch BugsTests */,
 				99809E83247A009A006FF9A5 /* Garden Catch Bugs */,
 				99809E82247A009A006FF9A5 /* Products */,
 			);
@@ -118,6 +146,7 @@
 		99809E82247A009A006FF9A5 /* Products */ = {
 			isa = PBXGroup;
 			children = (
+				99C0FFEE2D0100000000C002 /* Garden Catch BugsTests.xctest */,
 				99809E81247A009A006FF9A5 /* Garden Catch Bugs.app */,
 			);
 			name = Products;
@@ -126,6 +155,7 @@
 		99809E83247A009A006FF9A5 /* Garden Catch Bugs */ = {
 			isa = PBXGroup;
 			children = (
+				99C0FFEE2D0100000000D001 /* RemoveAds.storekit */,
 				9971C84225F90F04008CFCF9 /* Garden: Catch Bugs.entitlements */,
 				99809E84247A009A006FF9A5 /* AppDelegate.swift */,
 				995EA2EA2CB134360080EB35 /* Config */,
@@ -148,6 +178,8 @@
 		99809EBB247A00DA006FF9A5 /* Tools */ = {
 			isa = PBXGroup;
 			children = (
+				99C0FFEE2D0100000000B001 /* AdsEntitlement.swift */,
+				99C0FFEE2D0100000000B003 /* PurchaseController.swift */,
 				99809EBC247A00DA006FF9A5 /* Constants.swift */,
 				99809EBD247A00DA006FF9A5 /* Music.swift */,
 				9971C88B25FA4CA4008CFCF9 /* Ads.swift */,
@@ -200,6 +232,15 @@
 			path = Controller;
 			sourceTree = "<group>";
 		};
+		99C0FFEE2D0100000000C003 /* Garden Catch BugsTests */ = {
+			isa = PBXGroup;
+			children = (
+				99C0FFEE2D0100000000C00C /* FakePurchaseController.swift */,
+				99C0FFEE2D0100000000C00E /* RemoveAdsTests.swift */,
+			);
+			path = "Garden Catch BugsTests";
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -222,6 +263,24 @@
 			productName = "Garden Catch Bugs";
 			productReference = 99809E81247A009A006FF9A5 /* Garden Catch Bugs.app */;
 			productType = "com.apple.product-type.application";
+		};
+		99C0FFEE2D0100000000C001 /* Garden Catch BugsTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 99C0FFEE2D0100000000C007 /* Build configuration list for PBXNativeTarget "Garden Catch BugsTests" */;
+			buildPhases = (
+				99C0FFEE2D0100000000C004 /* Sources */,
+				99C0FFEE2D0100000000C005 /* Frameworks */,
+				99C0FFEE2D0100000000C006 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				99C0FFEE2D0100000000C00A /* PBXTargetDependency */,
+			);
+			name = "Garden Catch BugsTests";
+			productName = "Garden Catch BugsTests";
+			productReference = 99C0FFEE2D0100000000C002 /* Garden Catch BugsTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
 		};
 /* End PBXNativeTarget section */
 
@@ -262,6 +321,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
+				99C0FFEE2D0100000000C001 /* Garden Catch BugsTests */,
 				99809E80247A009A006FF9A5 /* Garden Catch Bugs */,
 			);
 		};
@@ -282,6 +342,13 @@
 				99809ECB247A00DE006FF9A5 /* 按键.mp3 in Resources */,
 				99809EFD247D64DC006FF9A5 /* 抓到益虫.mp3 in Resources */,
 				99809EFC247D64DC006FF9A5 /* 抓到害虫.mp3 in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		99C0FFEE2D0100000000C006 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -306,13 +373,32 @@
 				99809EF3247A1BBB006FF9A5 /* GameOverScene.swift in Sources */,
 				9971C88F25FA4CAC008CFCF9 /* MoreAppsViewController.swift in Sources */,
 				99C0FFEE2D0100000000A002 /* SettingsViewController.swift in Sources */,
+				99C0FFEE2D0100000000B004 /* PurchaseController.swift in Sources */,
+				99C0FFEE2D0100000000B002 /* AdsEntitlement.swift in Sources */,
 				99809EC1247A00DA006FF9A5 /* StoreReviewHelper.swift in Sources */,
 				9971C89625FA4D02008CFCF9 /* AppItemCell.swift in Sources */,
 				9971C88825F920A4008CFCF9 /* UIFont+Extension.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		99C0FFEE2D0100000000C004 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				99C0FFEE2D0100000000C00D /* FakePurchaseController.swift in Sources */,
+				99C0FFEE2D0100000000C00F /* RemoveAdsTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		99C0FFEE2D0100000000C00A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 99809E80247A009A006FF9A5 /* Garden Catch Bugs */;
+			targetProxy = 99C0FFEE2D0100000000C00B /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin PBXVariantGroup section */
 		99809E8E247A009A006FF9A5 /* Main.storyboard */ = {
@@ -531,6 +617,44 @@
 			};
 			name = Release;
 		};
+		99C0FFEE2D0100000000C008 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.6;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.Banghua-Zhao.Garden-Catch-BugsTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Garden Catch Bugs.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Garden Catch Bugs";
+			};
+			name = Debug;
+		};
+		99C0FFEE2D0100000000C009 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.6;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.Banghua-Zhao.Garden-Catch-BugsTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Garden Catch Bugs.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Garden Catch Bugs";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -548,6 +672,15 @@
 			buildConfigurations = (
 				99809E9A247A009B006FF9A5 /* Debug */,
 				99809E9B247A009B006FF9A5 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		99C0FFEE2D0100000000C007 /* Build configuration list for PBXNativeTarget "Garden Catch BugsTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				99C0FFEE2D0100000000C008 /* Debug */,
+				99C0FFEE2D0100000000C009 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
