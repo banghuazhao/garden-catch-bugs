@@ -36,7 +36,7 @@ final class MainMenuScene: SKScene {
     private var modalIsVisible = false
     private let menuNode = SKNode()
     private let showcaseNode = SKNode()
-    private weak var helpCardNode: SKSpriteNode?
+    private weak var helpCardNode: SKShapeNode?
 
     override func didMove(to view: SKView) {
         setGameBannerHidden(false)
@@ -186,7 +186,12 @@ extension MainMenuScene {
     }
 
     private static let closeRadius: CGFloat = 68
-    private static let closeInset: CGFloat = 64
+
+    /// Sampled from helpMenu.png so the redrawn frame matches the artwork.
+    private enum HelpPalette {
+        static let panel = SKColor(red: 195 / 255, green: 233 / 255, blue: 110 / 255, alpha: 1)
+        static let border = SKColor(red: 71 / 255, green: 106 / 255, blue: 0, alpha: 1)
+    }
 
     /// Round close control for the trailing top corner of a dialog.
     private func makeCloseButton(name: String, position: CGPoint) -> SKShapeNode {
@@ -295,29 +300,56 @@ extension MainMenuScene {
         dimmer.zPosition = 0
         overlay.addChild(dimmer)
 
-        // Fit the card into the space that is actually usable, so its Back
-        // button cannot end up behind the banner or under a home indicator.
+        // Everything is laid out inside the space that is genuinely usable:
+        // on screen, inside the safe area, and clear of the ad banner.
         let content = safeContentRect(reservingBottom: sceneBannerHeight() + MainMenuScene.edgePadding)
-        let helpCard = SKSpriteNode(imageNamed: "helpMenu")
+
+        // The artwork carries its own frame and, below the last row of bugs, an
+        // empty band that used to hold the Back button. Trim both: the dialog
+        // should be only as tall as the content it actually shows, and the
+        // frame is redrawn here so the trimmed edge still looks finished.
+        let artwork = SKTexture(imageNamed: "helpMenu")
+        // Measured from the asset: a 20px frame on every side, and content that
+        // stops at row 645 of 833.
+        let trimmed = SKTexture(
+            rect: CGRect(x: 0.0197, y: 0.2257, width: 0.9598, height: 0.7455),
+            in: artwork)
+        let art = SKSpriteNode(texture: trimmed)
+        art.zPosition = 1
+
+        let padding: CGFloat = 26
+        let cardSize = CGSize(
+            width: art.size.width + padding * 2,
+            height: art.size.height + padding * 2)
+
+        // The close control straddles the corner, so leave room for its
+        // overhang before deciding how large the card may be.
+        let overhang = MainMenuScene.closeRadius
+        let fit = min(
+            (content.width - overhang) / cardSize.width,
+            (content.height - overhang) / cardSize.height,
+            0.76)
+
+        let helpCard = SKShapeNode(rectOf: cardSize, cornerRadius: 40)
         helpCard.name = "helpCard"
         helpCard.zPosition = 1
-        let fit = min(
-            content.width / helpCard.size.width,
-            content.height / helpCard.size.height,
-            0.76)
+        helpCard.fillColor = HelpPalette.panel
+        helpCard.strokeColor = HelpPalette.border
+        helpCard.lineWidth = 14
         helpCard.setScale(fit)
-        helpCard.position = CGPoint(x: content.midX, y: content.midY)
+        helpCard.position = CGPoint(x: content.midX - overhang / 2, y: content.midY - overhang / 2)
+        helpCard.addChild(art)
         overlay.addChild(helpCard)
         helpCardNode = helpCard
 
         // Sibling of the card rather than a child, so the close target keeps a
-        // consistent on-screen size however far the card had to scale down.
-        let renderedSize = CGSize(width: helpCard.size.width * fit, height: helpCard.size.height * fit)
+        // consistent on-screen size however far the card had to scale down, and
+        // centred on the corner so it can never sit over the text.
         let close = makeCloseButton(
             name: "helpCloseButton",
             position: CGPoint(
-                x: helpCard.position.x + renderedSize.width / 2 - MainMenuScene.closeInset,
-                y: helpCard.position.y + renderedSize.height / 2 - MainMenuScene.closeInset))
+                x: helpCard.position.x + cardSize.width * fit / 2,
+                y: helpCard.position.y + cardSize.height * fit / 2))
         close.zPosition = 2
         overlay.addChild(close)
 
