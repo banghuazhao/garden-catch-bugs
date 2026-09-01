@@ -46,7 +46,7 @@ class AppItemCell: UITableViewCell {
     lazy var rightArrowImageView = UIImageView().then { imageView in
         imageView.tintColor = .black
         imageView.contentMode = .scaleAspectFit
-        imageView.image = UIImage(named: "button_rightArrow")?.withRenderingMode(.alwaysTemplate)
+        imageView.image = UIImage(systemName: "chevron.right")
     }
 
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {

@@ -7,7 +7,13 @@
 // Configuration settings file format documentation can be found at:
 // https://help.apple.com/xcode/#/dev745c5c974
 
+// Google's official iOS test units. These always fill, and they are the only
+// IDs safe to run in development -- requesting production units from a debug
+// build risks the AdMob account being flagged for invalid traffic.
+// Reference: https://developers.google.com/admob/ios/test-ads
 GADApplicationIdentifier = ca-app-pub-3940256099942544~1458002511
+// Anchored adaptive banner, matching AdaptiveBannerView. The fixed 320x50 test
+// unit is .../2934735716 and is not what this app requests.
 BannerAdUnitID = ca-app-pub-3940256099942544/2435281174
 InterstitialAdID = ca-app-pub-3940256099942544/4411468910
 AppOpenAdID = ca-app-pub-3940256099942544/5575463023

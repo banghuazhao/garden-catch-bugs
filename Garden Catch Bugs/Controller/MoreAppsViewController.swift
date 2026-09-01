@@ -15,6 +15,9 @@ import UIKit
 #endif
 
 class MoreAppsViewController: UIViewController {
+    override var prefersStatusBarHidden: Bool { true }
+    override var prefersHomeIndicatorAutoHidden: Bool { true }
+
     var isAds: Bool = false
 
     #if !targetEnvironment(macCatalyst)
@@ -162,7 +165,7 @@ class MoreAppsViewController: UIViewController {
         #endif
 
         backButton.snp.makeConstraints { make in
-            make.left.equalToSuperview().inset(20)
+            make.left.equalTo(view.safeAreaLayoutGuide).offset(20)
             make.centerY.equalTo(titleLabel)
             make.size.equalTo(20)
         }

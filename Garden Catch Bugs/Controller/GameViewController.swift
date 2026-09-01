@@ -29,6 +29,12 @@ class GameViewController: UIViewController {
         skView.ignoresSiblingOrder = false
         scene.scaleMode = .aspectFill
         skView.presentScene(scene)
+
+        #if !targetEnvironment(macCatalyst)
+            let banner = AdaptiveBannerView(rootViewController: self)
+            banner.pinToBottom(of: view, safeArea: view.safeAreaLayoutGuide)
+            gameBannerView = banner
+        #endif
     }
 
     override var prefersStatusBarHidden: Bool {

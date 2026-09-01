@@ -36,6 +36,7 @@ final class MainMenuScene: SKScene {
     private var modalIsVisible = false
 
     override func didMove(to view: SKView) {
+        setGameBannerHidden(false)
         backgroundColor = MenuPalette.ink
         playBackgroundMusic(filename: "首页音乐.mp3", repeatForever: true)
 
@@ -55,7 +56,7 @@ final class MainMenuScene: SKScene {
         if modalIsVisible {
             guard control.name == "backButton" else { return }
             animateButtonPress(control)
-            run(tapButtonSound)
+            playSoundEffect(tapButtonSound)
             hideHelp()
             return
         }
@@ -63,19 +64,21 @@ final class MainMenuScene: SKScene {
         switch control.name {
         case "startButton":
             animateButtonPress(control)
-            run(tapButtonSound)
-            backgroundMusicPlayer.stop()
+            playSoundEffect(tapButtonSound)
+            endBackgroundMusic()
             let gameScene = GameScene(size: size)
             gameScene.scaleMode = .aspectFill
             view?.presentScene(gameScene, transition: .crossFade(withDuration: 0.26))
         case "helpButton":
             animateButtonPress(control)
-            run(tapButtonSound)
+            playSoundEffect(tapButtonSound)
             showHelp()
-        case "creditsButton":
+        case "settingsButton":
             animateButtonPress(control)
-            run(tapButtonSound)
-            view?.window?.rootViewController?.present(MoreAppsViewController(), animated: true)
+            playSoundEffect(tapButtonSound)
+            let settingsViewController = SettingsViewController()
+            settingsViewController.modalPresentationStyle = .fullScreen
+            view?.window?.rootViewController?.present(settingsViewController, animated: true)
         default:
             break
         }
@@ -120,12 +123,12 @@ extension MainMenuScene {
             title: "Help".localized(),
             color: MenuPalette.amber,
             position: CGPoint(x: -590, y: -58))
-        let moreApps = makeMenuButton(
-            name: "creditsButton",
-            title: "More Apps".localized(),
+        let settings = makeMenuButton(
+            name: "settingsButton",
+            title: "Settings".localized(),
             color: MenuPalette.ink,
             position: CGPoint(x: -590, y: -208))
-        [start, help, moreApps].forEach { button in
+        [start, help, settings].forEach { button in
             button.zPosition = 3
             background.addChild(button)
         }
@@ -252,7 +255,7 @@ extension MainMenuScene {
         for node in nodes(at: location) {
             var candidate: SKNode? = node
             while let current = candidate {
-                if ["startButton", "helpButton", "creditsButton", "backButton"].contains(current.name ?? "") {
+                if ["startButton", "helpButton", "settingsButton", "backButton"].contains(current.name ?? "") {
                     return current
                 }
                 candidate = current.parent

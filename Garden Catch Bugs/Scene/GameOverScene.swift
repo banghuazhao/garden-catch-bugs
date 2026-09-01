@@ -33,6 +33,7 @@ final class GameOverScene: SKScene {
     private let presentedAt = Date()
 
     override func didMove(to view: SKView) {
+        setGameBannerHidden(true)
         backgroundColor = ResultsPalette.ink
         buildResults()
 
@@ -40,6 +41,7 @@ final class GameOverScene: SKScene {
             presentInterstitialIfDue(from: view)
         #else
             let moreAppsViewController = MoreAppsViewController()
+            moreAppsViewController.modalPresentationStyle = .fullScreen
             view.window?.rootViewController?.present(moreAppsViewController, animated: true)
         #endif
     }
@@ -49,7 +51,7 @@ final class GameOverScene: SKScene {
               let button = namedButton(at: touch.location(in: self)) else { return }
 
         animateButtonPress(button)
-        run(tapButtonSound)
+        playSoundEffect(tapButtonSound)
         switch button.name {
         case "restartButton":
             let scene = GameScene(size: size)

@@ -15,6 +15,7 @@
 		9971C88825F920A4008CFCF9 /* UIFont+Extension.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9971C88725F920A4008CFCF9 /* UIFont+Extension.swift */; };
 		9971C88C25FA4CA4008CFCF9 /* Ads.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9971C88B25FA4CA4008CFCF9 /* Ads.swift */; };
 		9971C88F25FA4CAC008CFCF9 /* MoreAppsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9971C88E25FA4CAC008CFCF9 /* MoreAppsViewController.swift */; };
+		99C0FFEE2D0100000000A002 /* SettingsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99C0FFEE2D0100000000A001 /* SettingsViewController.swift */; };
 		9971C89625FA4D02008CFCF9 /* AppItemCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9971C89225FA4CBC008CFCF9 /* AppItemCell.swift */; };
 		9971C89725FA4D02008CFCF9 /* MoreAppsHeaderCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9971C89125FA4CBB008CFCF9 /* MoreAppsHeaderCell.swift */; };
 		9971C89925FA4D04008CFCF9 /* AppItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9971C89425FA4CD2008CFCF9 /* AppItem.swift */; };
@@ -48,6 +49,7 @@
 		9971C88725F920A4008CFCF9 /* UIFont+Extension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UIFont+Extension.swift"; sourceTree = "<group>"; };
 		9971C88B25FA4CA4008CFCF9 /* Ads.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Ads.swift; sourceTree = "<group>"; };
 		9971C88E25FA4CAC008CFCF9 /* MoreAppsViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoreAppsViewController.swift; sourceTree = "<group>"; };
+		99C0FFEE2D0100000000A001 /* SettingsViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsViewController.swift; sourceTree = "<group>"; };
 		9971C89125FA4CBB008CFCF9 /* MoreAppsHeaderCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoreAppsHeaderCell.swift; sourceTree = "<group>"; };
 		9971C89225FA4CBC008CFCF9 /* AppItemCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppItemCell.swift; sourceTree = "<group>"; };
 		9971C89425FA4CD2008CFCF9 /* AppItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppItem.swift; sourceTree = "<group>"; };
@@ -193,6 +195,7 @@
 			children = (
 				99809ED8247A00F9006FF9A5 /* GameViewController.swift */,
 				9971C88E25FA4CAC008CFCF9 /* MoreAppsViewController.swift */,
+				99C0FFEE2D0100000000A001 /* SettingsViewController.swift */,
 			);
 			path = Controller;
 			sourceTree = "<group>";
@@ -302,6 +305,7 @@
 				99809EEF247A195D006FF9A5 /* GameScene.swift in Sources */,
 				99809EF3247A1BBB006FF9A5 /* GameOverScene.swift in Sources */,
 				9971C88F25FA4CAC008CFCF9 /* MoreAppsViewController.swift in Sources */,
+				99C0FFEE2D0100000000A002 /* SettingsViewController.swift in Sources */,
 				99809EC1247A00DA006FF9A5 /* StoreReviewHelper.swift in Sources */,
 				9971C89625FA4D02008CFCF9 /* AppItemCell.swift in Sources */,
 				9971C88825F920A4008CFCF9 /* UIFont+Extension.swift in Sources */,

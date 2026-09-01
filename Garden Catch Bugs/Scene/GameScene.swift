@@ -122,6 +122,7 @@ final class GameScene: SKScene {
 
     override func didMove(to view: SKView) {
         addObservers()
+        setGameBannerHidden(true)
         backgroundColor = GardenPalette.ink
         gameState = .playing
         startingBest = UserDefaults.standard.object(forKey: Constants.UserDefaultsKeys.BEST_SCORE) as? Int ?? 0
@@ -200,15 +201,15 @@ extension GameScene {
         switch control.name {
         case "pauseButton":
             animateButtonPress(control)
-            run(tapSound)
+            playSoundEffect(tapSound)
             pauseGame()
         case "resumeButton":
             animateButtonPress(control)
-            run(tapSound)
+            playSoundEffect(tapSound)
             resumeGame()
         case "backButton":
             animateButtonPress(control)
-            run(tapSound)
+            playSoundEffect(tapSound)
             returnToMainMenu()
         default:
             return false
@@ -290,7 +291,7 @@ extension GameScene {
         shakePlayfield(intensity: kind.isFriendly ? 9 : 14)
         hitStop(duration: kind.isFriendly ? 0.04 : 0.09)
         triggerHaptic(isFriendly: kind.isFriendly)
-        run(kind.isFriendly ? catchGoodBugSound : catchBadBugSound)
+        playSoundEffect(kind.isFriendly ? catchGoodBugSound : catchBadBugSound)
 
         let squash = SKAction.scale(to: 0.88, duration: 0.05)
         let exit = SKAction.group([
@@ -661,10 +662,10 @@ extension GameScene {
         gameState = .paused
         removeAction(forKey: "hitStop")
         gameLayerNode.speed = 1
-        gameLayerNode.isPaused = true
-        physicsWorld.speed = 0
+        setWorldFrozen(true)
         hideNet()
         lastSlicePoint = nil
+        pauseBackgroundMusic()
 
         let overlay = SKNode()
         overlay.name = "pauseOverlay"
@@ -721,13 +722,22 @@ extension GameScene {
         ]), withKey: "enter")
     }
 
+    /// Freezes everything that belongs to the round — bugs, spawners, screen shake
+    /// and lingering effects — while leaving the HUD and the pause panel live.
+    private func setWorldFrozen(_ frozen: Bool) {
+        playfieldNode.isPaused = frozen
+        gameLayerNode.isPaused = frozen
+        effectsNode.isPaused = frozen
+        physicsWorld.speed = frozen ? 0 : 1
+    }
+
     private func resumeGame() {
         guard gameState == .paused else { return }
         gameState = .playing
-        gameLayerNode.isPaused = false
         gameLayerNode.speed = 1
-        physicsWorld.speed = 1
+        setWorldFrozen(false)
         lastUpdateTime = 0
+        resumeBackgroundMusic()
 
         let overlay = pauseOverlay
         pauseOverlay = nil
@@ -741,8 +751,8 @@ extension GameScene {
     }
 
     private func returnToMainMenu() {
-        gameLayerNode.isPaused = false
-        backgroundMusicPlayer.stop()
+        setWorldFrozen(false)
+        endBackgroundMusic()
         let scene = MainMenuScene(size: size)
         scene.scaleMode = .aspectFill
         view?.presentScene(scene, transition: .crossFade(withDuration: 0.28))
@@ -752,8 +762,8 @@ extension GameScene {
         guard !gameEnded else { return }
         gameEnded = true
         gameState = .paused
-        gameLayerNode.isPaused = true
-        backgroundMusicPlayer.stop()
+        setWorldFrozen(true)
+        endBackgroundMusic()
 
         let scene = GameOverScene(size: size)
         scene.finalScore = score
@@ -810,6 +820,17 @@ extension GameScene {
             queue: .main
         ) { [weak self] _ in
             self?.pauseGame()
+        })
+        // SpriteKit un-pauses the scene for us when the app returns to the
+        // foreground, which would set the bugs moving again underneath the pause
+        // panel. Re-assert the freeze whenever the round is still paused.
+        notificationObservers.append(notificationCenter.addObserver(
+            forName: UIApplication.didBecomeActiveNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            guard let self, self.gameState == .paused else { return }
+            self.setWorldFrozen(true)
         })
     }
 }
