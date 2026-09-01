@@ -12,7 +12,22 @@ private enum GameState {
     case paused
 }
 
-private enum BugKind: String, CaseIterable {
+/// The two ways to play. Classic is the original fixed 60-second round;
+/// Survival drops the clock and gates the run on lives instead, so a skilled
+/// player keeps going and each run has its own high score to beat.
+enum GameMode {
+    case classic
+    case survival
+
+    var bestScoreKey: String {
+        switch self {
+        case .classic: return Constants.UserDefaultsKeys.BEST_SCORE
+        case .survival: return Constants.UserDefaultsKeys.BEST_SCORE_SURVIVAL
+        }
+    }
+}
+
+enum BugKind: String, CaseIterable {
     case bee
     case ladyBug = "lady_bug"
     case leafBeetle = "leafbeetle"
@@ -55,6 +70,9 @@ private enum BugKind: String, CaseIterable {
 
     var isFriendly: Bool { points > 0 }
 
+    static var friendlies: [BugKind] { allCases.filter(\.isFriendly) }
+    static var pests: [BugKind] { allCases.filter { !$0.isFriendly } }
+
     var feedbackColor: SKColor {
         isFriendly
             ? SKColor(red: 0.24, green: 0.79, blue: 0.40, alpha: 1)
@@ -71,6 +89,7 @@ private enum GardenPalette {
     static let mint = SKColor(red: 0.73, green: 0.96, blue: 0.79, alpha: 1)
     static let cream = SKColor(red: 1.0, green: 0.97, blue: 0.84, alpha: 1)
     static let coral = SKColor(red: 0.92, green: 0.30, blue: 0.29, alpha: 1)
+    static let amber = SKColor(red: 0.98, green: 0.76, blue: 0.24, alpha: 1)
 }
 
 final class GameScene: SKScene {
@@ -99,7 +118,18 @@ final class GameScene: SKScene {
     /// Rendered size of a bug sprite, fixed so spawn margins can be trusted.
     fileprivate static let bugScale: CGFloat = 0.6
 
+    private let mode: GameMode
     private var startingBest = 0
+
+    /// Survival state. Unused in Classic.
+    private var run = SurvivalRun()
+    private var lives = SurvivalRun.startingLives {
+        didSet { updateLivesUI() }
+    }
+
+    private var survivalStage = 0
+    private var elapsed: TimeInterval = 0
+
     private let maxTime: TimeInterval = 60
     private var timeRemaining: TimeInterval = 60 {
         didSet { updateTimerUI() }
@@ -118,14 +148,27 @@ final class GameScene: SKScene {
 
     private let scoreLabel = GameScene.makeHUDLabel(alignment: .center)
     private let bestScoreLabel = GameScene.makeHUDLabel(alignment: .center)
+    /// Right-hand HUD slot: the clock in Classic, remaining lives in Survival.
     private let timeLabel = GameScene.makeHUDLabel(alignment: .center)
+    private let comboLabel = SKLabelNode(fontNamed: "AvenirNext-Heavy")
+    private var timeBarTrack: SKShapeNode?
+
+    init(size: CGSize, mode: GameMode = .classic) {
+        self.mode = mode
+        super.init(size: size)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
 
     override func didMove(to view: SKView) {
         addObservers()
         setGameBannerHidden(true)
         backgroundColor = GardenPalette.ink
         gameState = .playing
-        startingBest = UserDefaults.standard.object(forKey: Constants.UserDefaultsKeys.BEST_SCORE) as? Int ?? 0
+        startingBest = UserDefaults.standard.object(forKey: mode.bestScoreKey) as? Int ?? 0
         playBackgroundMusic(filename: "游戏音乐.mp3", repeatForever: true)
         createWorld()
         createHUD()
@@ -142,19 +185,35 @@ final class GameScene: SKScene {
 
         let deltaTime = lastUpdateTime > 0 ? currentTime - lastUpdateTime : 0
         lastUpdateTime = currentTime
-        timeRemaining -= deltaTime
+        elapsed += deltaTime
 
-        if timeRemaining <= 0 {
-            timeUp()
-            return
-        }
-
-        for (index, waveTime) in [50, 40, 30, 20, 10].enumerated() {
-            if timeRemaining <= TimeInterval(waveTime), createWave[index] {
-                createWave[index] = false
-                spawnBugWave()
+        switch mode {
+        case .classic:
+            timeRemaining -= deltaTime
+            if timeRemaining <= 0 {
+                endRound()
+                return
             }
+            for (index, waveTime) in [50, 40, 30, 20, 10].enumerated() {
+                if timeRemaining <= TimeInterval(waveTime), createWave[index] {
+                    createWave[index] = false
+                    spawnBugWave()
+                }
+            }
+        case .survival:
+            advanceSurvivalStage()
         }
+    }
+
+    /// Survival ramps in 20-second steps: bugs come faster, fly faster, and the
+    /// mix tilts towards pests. Each step opens with a wave so the change is felt.
+    private func advanceSurvivalStage() {
+        let stage = Int(elapsed / 20)
+        guard stage > survivalStage else { return }
+        survivalStage = stage
+        restartSpawners()
+        spawnBugWave()
+        showToast(String(format: "Wave %d".localized(), stage + 1), color: GardenPalette.mint)
     }
 }
 
@@ -283,15 +342,33 @@ extension GameScene {
     private func capture(_ bug: SKNode, as kind: BugKind) {
         bug.name = nil
         bug.removeAllActions()
-        score += kind.points
+
+        var gained = kind.points
+        var outcome: SurvivalRun.Outcome?
+        if mode == .survival {
+            let result = run.capture(kind)
+            gained = result.pointsGained
+            outcome = result
+            updateComboUI()
+        }
+        score += gained
 
         let position = bug.position
         addCaptureBurst(at: position, kind: kind)
-        addScorePop(at: position, points: kind.points, color: kind.feedbackColor)
+        addScorePop(at: position, points: gained, color: kind.feedbackColor)
         shakePlayfield(intensity: kind.isFriendly ? 9 : 14)
         hitStop(duration: kind.isFriendly ? 0.04 : 0.09)
         triggerHaptic(isFriendly: kind.isFriendly)
         playSoundEffect(kind.isFriendly ? catchGoodBugSound : catchBadBugSound)
+
+        if let outcome {
+            if outcome.gainedExtraLife {
+                showToast("Extra Life!".localized(), color: GardenPalette.leaf)
+            }
+            if outcome.lostLife { flashDanger() }
+            lives = run.lives
+            if run.isOver { endRound() }
+        }
 
         let squash = SKAction.scale(to: 0.88, duration: 0.05)
         let exit = SKAction.group([
@@ -354,6 +431,38 @@ extension GameScene {
                     .fadeOut(withDuration: 0.27),
                 ]),
             ]),
+            .removeFromParent(),
+        ]))
+    }
+
+    /// A red vignette pulse, so losing a life reads instantly without a modal.
+    private func flashDanger() {
+        let flash = SKShapeNode(rectOf: size)
+        flash.position = CGPoint(x: size.width / 2, y: size.height / 2)
+        flash.fillColor = GardenPalette.coral.withAlphaComponent(0.34)
+        flash.strokeColor = .clear
+        flash.zPosition = 5
+        effectsNode.addChild(flash)
+        flash.run(.sequence([.fadeOut(withDuration: 0.32), .removeFromParent()]))
+        shakePlayfield(intensity: 18)
+    }
+
+    private func showToast(_ text: String, color: SKColor) {
+        let label = SKLabelNode(fontNamed: "AvenirNext-Heavy")
+        label.text = text
+        label.fontColor = color
+        label.fontSize = 82
+        label.verticalAlignmentMode = .center
+        label.horizontalAlignmentMode = .center
+        label.position = CGPoint(x: size.width / 2, y: size.height / 2 + 120)
+        label.zPosition = 6
+        label.setScale(0.6)
+        effectsNode.addChild(label)
+        label.run(.sequence([
+            .group([.scale(to: 1.08, duration: 0.18), .fadeIn(withDuration: 0.14)]),
+            .scale(to: 1, duration: 0.12),
+            .wait(forDuration: 0.5),
+            .group([.moveBy(x: 0, y: 60, duration: 0.3), .fadeOut(withDuration: 0.3)]),
             .removeFromParent(),
         ]))
     }
@@ -452,15 +561,27 @@ extension GameScene {
         barTrack.fillColor = SKColor.black.withAlphaComponent(0.22)
         barTrack.strokeColor = .clear
         barTrack.zPosition = 2
+        barTrack.isHidden = mode == .survival
         hudNode.addChild(barTrack)
+        timeBarTrack = barTrack
 
         let fill = SKShapeNode(rectOf: CGSize(width: 188, height: 6), cornerRadius: 3)
         fill.position = barTrack.position
         fill.fillColor = GardenPalette.leaf
         fill.strokeColor = .clear
         fill.zPosition = 3
+        fill.isHidden = mode == .survival
         hudNode.addChild(fill)
         timeBarFill = fill
+
+        comboLabel.fontColor = GardenPalette.amber
+        comboLabel.fontSize = 38
+        comboLabel.horizontalAlignmentMode = .center
+        comboLabel.verticalAlignmentMode = .center
+        comboLabel.position = CGPoint(x: scoreCard.position.x, y: scoreCard.position.y - 26)
+        comboLabel.zPosition = 3
+        comboLabel.alpha = 0
+        hudNode.addChild(comboLabel)
 
         let pauseButton = SKShapeNode(circleOfRadius: 44)
         pauseButton.position = CGPoint(x: size.width - 78, y: hudY)
@@ -482,7 +603,10 @@ extension GameScene {
         pauseButton.addChild(pauseGlyph)
 
         updateScoreUI()
-        updateTimerUI()
+        switch mode {
+        case .classic: updateTimerUI()
+        case .survival: updateLivesUI()
+        }
     }
 
     private func makeHUDCard(center: CGPoint, size: CGSize) -> SKShapeNode {
@@ -506,10 +630,10 @@ extension GameScene {
     private func updateScoreUI() {
         scoreLabel.text = "\("Score".localized()): \(score)"
 
-        let storedBest = UserDefaults.standard.object(forKey: Constants.UserDefaultsKeys.BEST_SCORE) as? Int ?? 0
+        let storedBest = UserDefaults.standard.object(forKey: mode.bestScoreKey) as? Int ?? 0
         let bestScore = max(storedBest, score)
         if bestScore != storedBest {
-            UserDefaults.standard.set(bestScore, forKey: Constants.UserDefaultsKeys.BEST_SCORE)
+            UserDefaults.standard.set(bestScore, forKey: mode.bestScoreKey)
         }
         bestScoreLabel.text = "\("Best Score".localized()): \(bestScore)"
 
@@ -522,7 +646,38 @@ extension GameScene {
         ]), withKey: "scorePulse")
     }
 
+    private func updateLivesUI() {
+        guard mode == .survival else { return }
+        timeLabel.text = String(repeating: "♥", count: max(0, lives))
+        timeLabel.fontColor = lives <= 1 ? GardenPalette.coral : GardenPalette.cream
+        guard timeLabel.parent != nil else { return }
+        timeLabel.removeAction(forKey: "livesPulse")
+        timeLabel.setScale(1)
+        timeLabel.run(.sequence([
+            .scale(to: 1.22, duration: 0.09),
+            .scale(to: 1, duration: 0.18),
+        ]), withKey: "livesPulse")
+    }
+
+    private func updateComboUI() {
+        guard mode == .survival else { return }
+        let multiplier = run.multiplier
+        guard multiplier > 1 else {
+            comboLabel.run(.fadeOut(withDuration: 0.18))
+            return
+        }
+        comboLabel.text = String(format: "Combo x%d".localized(), multiplier)
+        comboLabel.alpha = 1
+        comboLabel.removeAction(forKey: "comboPop")
+        comboLabel.setScale(1)
+        comboLabel.run(.sequence([
+            .scale(to: 1.28, duration: 0.08),
+            .scale(to: 1, duration: 0.16),
+        ]), withKey: "comboPop")
+    }
+
     private func updateTimerUI() {
+        guard mode == .classic else { return }
         let roundedTime = max(0, Int(ceil(timeRemaining)))
         timeLabel.text = "\("Time".localized()): \(roundedTime)s"
         timeBarFill?.xScale = max(0.02, CGFloat(timeRemaining / maxTime))
@@ -571,15 +726,44 @@ extension GameScene {
                 .wait(forDuration: 0.5 + Double(index) * 0.22),
                 .repeatForever(.sequence([
                     .run { [weak self] in self?.spawnBug(from: edge) },
-                    .wait(forDuration: 1.35, withRange: 0.5),
+                    .wait(forDuration: spawnInterval, withRange: 0.5),
                 ])),
             ])
             gameLayerNode.run(action, withKey: "spawner\(index)")
         }
     }
 
+    /// Spawner waits are baked into a running action, so a rate change means
+    /// rebuilding them.
+    private func restartSpawners() {
+        for index in SpawnEdge.allCases.indices {
+            gameLayerNode.removeAction(forKey: "spawner\(index)")
+        }
+        startSpawningBugs()
+    }
+
+    private var spawnInterval: TimeInterval {
+        switch mode {
+        case .classic: return 1.35
+        case .survival: return max(0.5, 1.25 - Double(survivalStage) * 0.13)
+        }
+    }
+
+    /// Survival opens forgiving and tightens: pests climb from about a third of
+    /// spawns to nearly two thirds.
+    private func randomKind() -> BugKind {
+        switch mode {
+        case .classic:
+            return BugKind.allCases.randomElement() ?? .bee
+        case .survival:
+            let pestChance = min(0.6, 0.35 + Double(survivalStage) * 0.04)
+            let pool = Double.random(in: 0 ..< 1) < pestChance ? BugKind.pests : BugKind.friendlies
+            return pool.randomElement() ?? .bee
+        }
+    }
+
     private func makeBug() -> SKSpriteNode {
-        let kind = BugKind.allCases.randomElement() ?? .bee
+        let kind = randomKind()
         let bug = SKSpriteNode(imageNamed: kind.textureName)
         bug.name = kind.rawValue
         bug.zPosition = 2
@@ -637,8 +821,13 @@ extension GameScene {
 
     /// Bugs speed up gently as the round runs down.
     private var difficultyMultiplier: CGFloat {
-        let progress = CGFloat(1 - max(0, timeRemaining) / maxTime)
-        return 1 + progress * 0.45
+        switch mode {
+        case .classic:
+            let progress = CGFloat(1 - max(0, timeRemaining) / maxTime)
+            return 1 + progress * 0.45
+        case .survival:
+            return min(2.1, 1 + CGFloat(survivalStage) * 0.13)
+        }
     }
 
     private func spawnBugWave() {
@@ -758,7 +947,7 @@ extension GameScene {
         view?.presentScene(scene, transition: .crossFade(withDuration: 0.28))
     }
 
-    private func timeUp() {
+    private func endRound() {
         guard !gameEnded else { return }
         gameEnded = true
         gameState = .paused
@@ -766,6 +955,7 @@ extension GameScene {
         endBackgroundMusic()
 
         let scene = GameOverScene(size: size)
+        scene.mode = mode
         scene.finalScore = score
         scene.bestScore = max(startingBest, score)
         scene.isNewBest = score > startingBest

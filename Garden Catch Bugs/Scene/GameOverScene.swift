@@ -26,6 +26,7 @@ final class GameOverScene: SKScene {
     /// Minimum time the results stay ad-free after the scene appears.
     private static let resultsRevealDuration: TimeInterval = 1.6
 
+    var mode: GameMode = .classic
     var finalScore = 0
     var bestScore = 0
     var isNewBest = false
@@ -54,7 +55,9 @@ final class GameOverScene: SKScene {
         playSoundEffect(tapButtonSound)
         switch button.name {
         case "restartButton":
-            let scene = GameScene(size: size)
+            // Replay lands back in the mode just played, which is what keeps a
+            // survival run loop tight.
+            let scene = GameScene(size: size, mode: mode)
             scene.scaleMode = .aspectFill
             view?.presentScene(scene, transition: .crossFade(withDuration: 0.26))
         case "backButton":
@@ -100,6 +103,16 @@ extension GameOverScene {
         trophy.lineWidth = 4
         trophy.zPosition = 1
         panel.addChild(trophy)
+
+        let modeLabel = SKLabelNode(fontNamed: "AvenirNext-Heavy")
+        modeLabel.text = (mode == .survival ? "Survival" : "Classic").localized()
+        modeLabel.fontColor = ResultsPalette.mint
+        modeLabel.fontSize = 34
+        modeLabel.verticalAlignmentMode = .center
+        modeLabel.horizontalAlignmentMode = .center
+        modeLabel.position = CGPoint(x: 0, y: 272)
+        modeLabel.zPosition = 1
+        panel.addChild(modeLabel)
 
         let trophyGlyph = SKLabelNode(fontNamed: "AvenirNext-Heavy")
         trophyGlyph.text = "★"

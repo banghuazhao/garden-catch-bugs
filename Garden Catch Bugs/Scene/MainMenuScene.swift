@@ -63,12 +63,9 @@ final class MainMenuScene: SKScene {
 
         switch control.name {
         case "startButton":
-            animateButtonPress(control)
-            playSoundEffect(tapButtonSound)
-            endBackgroundMusic()
-            let gameScene = GameScene(size: size)
-            gameScene.scaleMode = .aspectFill
-            view?.presentScene(gameScene, transition: .crossFade(withDuration: 0.26))
+            startGame(mode: .classic, from: control)
+        case "survivalButton":
+            startGame(mode: .survival, from: control)
         case "helpButton":
             animateButtonPress(control)
             playSoundEffect(tapButtonSound)
@@ -89,8 +86,8 @@ final class MainMenuScene: SKScene {
 
 extension MainMenuScene {
     private func buildMenu(in background: SKSpriteNode) {
-        let panel = SKShapeNode(rectOf: CGSize(width: 570, height: 680), cornerRadius: 48)
-        panel.position = CGPoint(x: -590, y: -62)
+        let panel = SKShapeNode(rectOf: CGSize(width: 900, height: 380), cornerRadius: 48)
+        panel.position = CGPoint(x: -540, y: -20)
         panel.fillColor = MenuPalette.forest
         panel.strokeColor = MenuPalette.mint.withAlphaComponent(0.50)
         panel.lineWidth = 4
@@ -113,29 +110,39 @@ extension MainMenuScene {
             .moveBy(x: 0, y: -13, duration: 1.8),
         ])), withKey: "titleFloat")
 
-        let start = makeMenuButton(
-            name: "startButton",
-            title: "Start".localized(),
-            color: MenuPalette.leaf,
-            position: CGPoint(x: -590, y: 92))
-        let help = makeMenuButton(
-            name: "helpButton",
-            title: "Help".localized(),
-            color: MenuPalette.amber,
-            position: CGPoint(x: -590, y: -58))
-        let settings = makeMenuButton(
-            name: "settingsButton",
-            title: "Settings".localized(),
-            color: MenuPalette.ink,
-            position: CGPoint(x: -590, y: -208))
-        [start, help, settings].forEach { button in
+        // 2x2 grid inside the panel: play modes on top, everything else below.
+        let columnX: [CGFloat] = [-750, -330]
+        let rowY: [CGFloat] = [50, -90]
+        let buttons = [
+            makeMenuButton(
+                name: "startButton",
+                title: "Classic".localized(),
+                color: MenuPalette.leaf,
+                position: CGPoint(x: columnX[0], y: rowY[0])),
+            makeMenuButton(
+                name: "survivalButton",
+                title: "Survival".localized(),
+                color: MenuPalette.amber,
+                position: CGPoint(x: columnX[1], y: rowY[0])),
+            makeMenuButton(
+                name: "helpButton",
+                title: "Help".localized(),
+                color: MenuPalette.ink,
+                position: CGPoint(x: columnX[0], y: rowY[1])),
+            makeMenuButton(
+                name: "settingsButton",
+                title: "Settings".localized(),
+                color: MenuPalette.ink,
+                position: CGPoint(x: columnX[1], y: rowY[1])),
+        ]
+        buttons.forEach { button in
             button.zPosition = 3
             background.addChild(button)
         }
     }
 
     private func makeMenuButton(name: String, title: String, color: SKColor, position: CGPoint) -> SKShapeNode {
-        let button = SKShapeNode(rectOf: CGSize(width: 420, height: 104), cornerRadius: 28)
+        let button = SKShapeNode(rectOf: CGSize(width: 380, height: 110), cornerRadius: 28)
         button.name = name
         button.position = position
         button.fillColor = color
@@ -145,7 +152,7 @@ extension MainMenuScene {
         let label = SKLabelNode(fontNamed: "AvenirNext-Heavy")
         label.text = title
         label.fontColor = MenuPalette.cream
-        label.fontSize = 44
+        label.fontSize = 40
         label.verticalAlignmentMode = .center
         label.horizontalAlignmentMode = .center
         label.position = .zero
@@ -251,11 +258,20 @@ extension MainMenuScene {
         }
     }
 
+    private func startGame(mode: GameMode, from control: SKNode) {
+        animateButtonPress(control)
+        playSoundEffect(tapButtonSound)
+        endBackgroundMusic()
+        let gameScene = GameScene(size: size, mode: mode)
+        gameScene.scaleMode = .aspectFill
+        view?.presentScene(gameScene, transition: .crossFade(withDuration: 0.26))
+    }
+
     private func namedControl(at location: CGPoint) -> SKNode? {
         for node in nodes(at: location) {
             var candidate: SKNode? = node
             while let current = candidate {
-                if ["startButton", "helpButton", "settingsButton", "backButton"].contains(current.name ?? "") {
+                if ["startButton", "survivalButton", "helpButton", "settingsButton", "backButton"].contains(current.name ?? "") {
                     return current
                 }
                 candidate = current.parent

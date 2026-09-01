@@ -42,6 +42,7 @@
 		99809EFD247D64DC006FF9A5 /* 抓到益虫.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 99809EF9247D64DC006FF9A5 /* 抓到益虫.mp3 */; };
 		99C0FFEE2D0100000000C00D /* FakePurchaseController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99C0FFEE2D0100000000C00C /* FakePurchaseController.swift */; };
 		99C0FFEE2D0100000000C00F /* RemoveAdsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99C0FFEE2D0100000000C00E /* RemoveAdsTests.swift */; };
+		99C0FFEE2D0100000000E002 /* SurvivalRun.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99C0FFEE2D0100000000E001 /* SurvivalRun.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -98,6 +99,7 @@
 		99C0FFEE2D0100000000C00C /* FakePurchaseController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FakePurchaseController.swift; sourceTree = "<group>"; };
 		99C0FFEE2D0100000000C00E /* RemoveAdsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoveAdsTests.swift; sourceTree = "<group>"; };
 		99C0FFEE2D0100000000D001 /* RemoveAds.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = RemoveAds.storekit; sourceTree = "<group>"; };
+		99C0FFEE2D0100000000E001 /* SurvivalRun.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SurvivalRun.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -178,6 +180,7 @@
 		99809EBB247A00DA006FF9A5 /* Tools */ = {
 			isa = PBXGroup;
 			children = (
+				99C0FFEE2D0100000000E001 /* SurvivalRun.swift */,
 				99C0FFEE2D0100000000B001 /* AdsEntitlement.swift */,
 				99C0FFEE2D0100000000B003 /* PurchaseController.swift */,
 				99809EBC247A00DA006FF9A5 /* Constants.swift */,
@@ -373,6 +376,7 @@
 				99809EF3247A1BBB006FF9A5 /* GameOverScene.swift in Sources */,
 				9971C88F25FA4CAC008CFCF9 /* MoreAppsViewController.swift in Sources */,
 				99C0FFEE2D0100000000A002 /* SettingsViewController.swift in Sources */,
+				99C0FFEE2D0100000000E002 /* SurvivalRun.swift in Sources */,
 				99C0FFEE2D0100000000B004 /* PurchaseController.swift in Sources */,
 				99C0FFEE2D0100000000B002 /* AdsEntitlement.swift in Sources */,
 				99809EC1247A00DA006FF9A5 /* StoreReviewHelper.swift in Sources */,

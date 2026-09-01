@@ -31,6 +31,7 @@ struct Constants {
         static let BEST_SCORE = "BEST_SCORE"
         static let ROUNDS_SINCE_AD = "ROUNDS_SINCE_AD"
         static let ADS_REMOVED = "ADS_REMOVED"
+        static let BEST_SCORE_SURVIVAL = "BEST_SCORE_SURVIVAL"
     }
 
     static var isIphoneFaceID: Bool {

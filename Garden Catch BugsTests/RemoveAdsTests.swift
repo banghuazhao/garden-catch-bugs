@@ -163,3 +163,106 @@ final class RestoreTests: XCTestCase {
         XCTAssertTrue(purchases.isAdsRemoved, "Cancelling a restore must not revoke.")
     }
 }
+
+// MARK: - Survival mode rules
+
+final class SurvivalRunTests: XCTestCase {
+    /// bee +3, ladyBug +2, leafBeetle +1 / blueBeetle -1, starBeetle -2, stinkBug -3
+    private let friendly = BugKind.bee
+    private let pest = BugKind.stinkBug
+
+    func testStartsWithThreeLivesAndNoCombo() {
+        let run = SurvivalRun()
+        XCTAssertEqual(run.lives, 3)
+        XCTAssertEqual(run.score, 0)
+        XCTAssertEqual(run.multiplier, 1)
+        XCTAssertFalse(run.isOver)
+    }
+
+    func testMultiplierStepsAtFiveTenAndFifteen() {
+        var run = SurvivalRun()
+        let steps: [(catches: Int, expected: Int)] = [(4, 1), (5, 2), (10, 3), (15, 4)]
+        for step in steps {
+            var fresh = SurvivalRun()
+            for _ in 0 ..< step.catches { _ = fresh.capture(friendly) }
+            XCTAssertEqual(fresh.multiplier, step.expected,
+                           "\(step.catches) catches should give x\(step.expected)")
+        }
+        _ = run.capture(friendly)
+        XCTAssertEqual(run.multiplier, 1)
+    }
+
+    func testMultiplierIsCappedAtFour() {
+        var run = SurvivalRun()
+        for _ in 0 ..< 40 { _ = run.capture(friendly) }
+        XCTAssertEqual(run.multiplier, 4)
+    }
+
+    func testFriendlyCatchScoresAtCurrentMultiplier() {
+        var run = SurvivalRun()
+        // Fifth catch is the first at x2, so it is worth double.
+        for _ in 0 ..< 4 { _ = run.capture(friendly) }
+        let outcome = run.capture(friendly)
+        XCTAssertEqual(outcome.pointsGained, friendly.points * 2)
+        XCTAssertFalse(outcome.lostLife)
+    }
+
+    func testPestCostsALifeAndResetsCombo() {
+        var run = SurvivalRun()
+        for _ in 0 ..< 6 { _ = run.capture(friendly) }
+        XCTAssertEqual(run.multiplier, 2)
+
+        let outcome = run.capture(pest)
+
+        XCTAssertTrue(outcome.lostLife)
+        XCTAssertEqual(run.lives, 2)
+        XCTAssertEqual(run.combo, 0)
+        XCTAssertEqual(run.multiplier, 1, "A pest must drop the streak back to x1.")
+    }
+
+    func testRunEndsAfterThreePests() {
+        var run = SurvivalRun()
+        for _ in 0 ..< 2 { _ = run.capture(pest) }
+        XCTAssertFalse(run.isOver)
+        _ = run.capture(pest)
+        XCTAssertTrue(run.isOver)
+        XCTAssertEqual(run.lives, 0)
+    }
+
+    func testExtraLifeAwardedEveryHundredPoints() {
+        var run = SurvivalRun()
+        var awards = 0
+        // Catch friendlies until well past the second threshold.
+        while run.score < 210 {
+            if run.capture(friendly).gainedExtraLife { awards += 1 }
+        }
+        XCTAssertEqual(awards, 2, "One extra life at 100 and another at 200.")
+        XCTAssertEqual(run.lives, SurvivalRun.startingLives + 2)
+    }
+
+    func testExtraLifeIsNotAwardedTwiceForTheSameThreshold() {
+        var run = SurvivalRun()
+        while run.score < 100 { _ = run.capture(friendly) }
+        let livesAfterFirstAward = run.lives
+        _ = run.capture(friendly)
+        XCTAssertEqual(run.lives, livesAfterFirstAward)
+    }
+}
+
+// MARK: - Game modes
+
+final class GameModeTests: XCTestCase {
+    func testEachModeKeepsItsOwnBestScore() {
+        XCTAssertNotEqual(GameMode.classic.bestScoreKey, GameMode.survival.bestScoreKey)
+        XCTAssertEqual(GameMode.classic.bestScoreKey, Constants.UserDefaultsKeys.BEST_SCORE)
+        XCTAssertEqual(GameMode.survival.bestScoreKey, Constants.UserDefaultsKeys.BEST_SCORE_SURVIVAL)
+    }
+
+    func testBugPoolsSplitFriendliesFromPests() {
+        XCTAssertFalse(BugKind.friendlies.isEmpty)
+        XCTAssertFalse(BugKind.pests.isEmpty)
+        XCTAssertTrue(BugKind.friendlies.allSatisfy(\.isFriendly))
+        XCTAssertTrue(BugKind.pests.allSatisfy { !$0.isFriendly })
+        XCTAssertEqual(BugKind.friendlies.count + BugKind.pests.count, BugKind.allCases.count)
+    }
+}

@@ -47,3 +47,10 @@
 "Retro Block Puzzle Game" = "Retro Block Puzzle Game";
 "Magic Tower" = "Magic Tower";
 "50 Floors Puzzle RPG" = "50 Floors Puzzle RPG";
+
+/* Game modes */
+"Classic" = "Classic";
+"Survival" = "Survival";
+"Wave %d" = "Wave %d";
+"Combo x%d" = "Combo x%d";
+"Extra Life!" = "Extra Life!";

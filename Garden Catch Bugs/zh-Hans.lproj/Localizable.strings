@@ -90,3 +90,10 @@
 "Retro Block Puzzle Game" = "复古俄罗斯方块益智游戏";
 "Magic Tower" = "魔塔";
 "50 Floors Puzzle RPG" = "50层解谜冒险RPG";
+
+/* 游戏模式 */
+"Classic" = "经典";
+"Survival" = "生存";
+"Wave %d" = "第 %d 波";
+"Combo x%d" = "连击 x%d";
+"Extra Life!" = "额外生命!";
