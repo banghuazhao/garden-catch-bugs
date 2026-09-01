@@ -8,6 +8,7 @@
 
 import Foundation
 import StoreKit
+import UIKit
 
 struct StoreReviewHelper {
         
@@ -38,6 +39,13 @@ struct StoreReviewHelper {
         
     }
     fileprivate func requestReview() {
-        SKStoreReviewController.requestReview()
+        // The scene-less requestReview() was deprecated in iOS 14. Prefer the
+        // active scene, falling back to any connected one; if UIKit has not
+        // attached a scene yet this simply skips, which is fine because the
+        // prompt is throttled by the App Store anyway.
+        let windowScenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        guard let scene = windowScenes.first(where: { $0.activationState == .foregroundActive })
+            ?? windowScenes.first else { return }
+        SKStoreReviewController.requestReview(in: scene)
     }
 }
