@@ -107,6 +107,10 @@ final class GameScene: SKScene {
     private var lastUpdateTime: TimeInterval = 0
     private var createWave = Array(repeating: true, count: 5)
     private var isTimerUrgent = false
+    private var netTargetPosition: CGPoint?
+    private var netVelocity = CGVector.zero
+    private var shakeTrauma: CGFloat = 0
+    private var shakeClock: TimeInterval = 0
 
     private let playfieldNode = SKNode()
     private let gameLayerNode = SKNode()
@@ -139,10 +143,15 @@ final class GameScene: SKScene {
         didSet { updateScoreUI() }
     }
 
-    private lazy var netNode: SKSpriteNode = {
+    /// A controller node follows the finger with a spring while the sprite is
+    /// free to squash independently on catches.
+    private let netNode = SKNode()
+    private lazy var netSpriteNode: SKSpriteNode = {
         let node = SKSpriteNode(imageNamed: "net")
-        node.zPosition = 4
+        node.zPosition = 0
         node.setScale(0.3)
+        netNode.zPosition = 4
+        netNode.addChild(node)
         return node
     }()
 
@@ -185,6 +194,9 @@ final class GameScene: SKScene {
 
         let deltaTime = lastUpdateTime > 0 ? currentTime - lastUpdateTime : 0
         lastUpdateTime = currentTime
+        let feedbackDeltaTime = min(deltaTime, 1.0 / 15.0)
+        updateNetMotion(deltaTime: feedbackDeltaTime)
+        updatePlayfieldShake(deltaTime: feedbackDeltaTime)
         elapsed += deltaTime
 
         switch mode {
@@ -228,8 +240,8 @@ extension GameScene {
         guard gameState == .playing, !gameEnded else { return }
 
         lastSlicePoint = location
-        showNet(at: location)
-        captureBugs(at: location)
+        beginNet(at: location)
+        captureBugs(from: location, to: location)
     }
 
     override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
@@ -238,11 +250,13 @@ extension GameScene {
         let previousLocation = lastSlicePoint
         lastSlicePoint = location
 
-        showNet(at: location)
+        moveNet(toward: location)
         if let previousLocation {
             addSwipeTrail(from: previousLocation, to: location)
+            captureBugs(from: previousLocation, to: location)
+        } else {
+            captureBugs(from: location, to: location)
         }
-        captureBugs(at: location)
     }
 
     override func touchesEnded(_ touches: Set<UITouch>?, with event: UIEvent?) {
@@ -293,53 +307,141 @@ extension GameScene {
 // MARK: - Game feel
 
 extension GameScene {
-    private func showNet(at location: CGPoint) {
+    private func beginNet(at location: CGPoint) {
+        netTargetPosition = location
+        netVelocity = .zero
         netNode.position = location
+        netNode.zRotation = 0
+        netNode.alpha = 1
+        netNode.setScale(1)
+        netNode.removeAction(forKey: "netDismiss")
+
+        _ = netSpriteNode
+        netSpriteNode.removeAllActions()
+        netSpriteNode.alpha = 0.25
+        netSpriteNode.colorBlendFactor = 0
+        netSpriteNode.xScale = 0.24
+        netSpriteNode.yScale = 0.35
         if netNode.parent == nil {
             effectsNode.addChild(netNode)
         }
-        netNode.removeAction(forKey: "netPop")
-        netNode.setScale(0.28)
-        netNode.run(.sequence([
-            .scale(to: 0.34, duration: 0.06),
-            .scale(to: 0.30, duration: 0.10),
-        ]), withKey: "netPop")
+
+        let openX = SKAction.scaleX(to: 0.31, duration: 0.07)
+        let settleX = SKAction.scaleX(to: 0.30, duration: 0.09)
+        let settleY = SKAction.scaleY(to: 0.30, duration: 0.16)
+        [openX, settleX, settleY].forEach { $0.timingMode = .easeOut }
+        netSpriteNode.run(.group([
+            .sequence([openX, settleX]),
+            settleY,
+            .fadeIn(withDuration: 0.06),
+        ]), withKey: "netAppear")
+        addNetRipple(at: location, color: GardenPalette.mint, strength: 0.65)
+    }
+
+    private func moveNet(toward location: CGPoint) {
+        netTargetPosition = location
     }
 
     private func hideNet() {
-        netNode.removeFromParent()
+        netTargetPosition = nil
+        netVelocity = .zero
+
+        guard gameState == .playing else {
+            netNode.removeAllActions()
+            netNode.removeFromParent()
+            return
+        }
+
+        netNode.removeAction(forKey: "netDismiss")
+        let settle = SKAction.group([
+            .fadeOut(withDuration: 0.10),
+            .scale(to: 0.86, duration: 0.10),
+        ])
+        settle.timingMode = .easeIn
+        netNode.run(.sequence([settle, .removeFromParent()]), withKey: "netDismiss")
+    }
+
+    /// The hit test stays on the finger for responsiveness, while only the
+    /// artwork follows this spring. That gives the net weight without adding
+    /// input latency or changing the game rules.
+    private func updateNetMotion(deltaTime: TimeInterval) {
+        guard let target = netTargetPosition, netNode.parent != nil, deltaTime > 0 else { return }
+        let dt = CGFloat(deltaTime)
+        let offset = CGVector(dx: target.x - netNode.position.x, dy: target.y - netNode.position.y)
+        let stiffness: CGFloat = 76
+        let damping = exp(-10.5 * dt)
+
+        netVelocity.dx = (netVelocity.dx + offset.dx * stiffness * dt) * damping
+        netVelocity.dy = (netVelocity.dy + offset.dy * stiffness * dt) * damping
+        netNode.position.x += netVelocity.dx * dt
+        netNode.position.y += netVelocity.dy * dt
+
+        if hypot(offset.dx, offset.dy) < 0.4, hypot(netVelocity.dx, netVelocity.dy) < 5 {
+            netNode.position = target
+            netVelocity = .zero
+        }
+
+        let desiredLean = max(-0.16, min(0.16, -netVelocity.dx / 5_200))
+        let rotationBlend = 1 - pow(0.001, dt)
+        netNode.zRotation += (desiredLean - netNode.zRotation) * rotationBlend
+
+        guard netSpriteNode.action(forKey: "netAppear") == nil,
+              netSpriteNode.action(forKey: "netCatch") == nil else { return }
+        let speed = hypot(netVelocity.dx, netVelocity.dy)
+        let stretch = min(0.052, speed / 10_000)
+        let scaleBlend = min(1, dt * 16)
+        netSpriteNode.xScale += (0.30 + stretch - netSpriteNode.xScale) * scaleBlend
+        netSpriteNode.yScale += (0.30 - stretch * 0.48 - netSpriteNode.yScale) * scaleBlend
     }
 
     private func addSwipeTrail(from start: CGPoint, to end: CGPoint) {
+        let distance = hypot(end.x - start.x, end.y - start.y)
+        guard distance >= 5 else { return }
         let path = CGMutablePath()
         path.move(to: start)
         path.addLine(to: end)
 
         let trail = SKShapeNode(path: path)
         trail.strokeColor = GardenPalette.mint.withAlphaComponent(0.72)
-        trail.lineWidth = 14
+        trail.lineWidth = min(19, 9 + distance * 0.075)
         trail.lineCap = .round
         trail.zPosition = 1
         effectsNode.addChild(trail)
-        trail.run(.sequence([
-            .group([
-                .fadeOut(withDuration: 0.18),
-                .scale(to: 0.92, duration: 0.18),
-            ]),
-            .removeFromParent(),
-        ]))
+        let fade = SKAction.fadeOut(withDuration: 0.16)
+        fade.timingMode = .easeIn
+        trail.run(.sequence([fade, .removeFromParent()]))
     }
 
-    private func captureBugs(at location: CGPoint) {
-        for node in nodes(at: location) {
+    /// Continuous segment testing keeps a quick swipe from tunnelling through a
+    /// bug between two UIKit touch samples.
+    private func captureBugs(from start: CGPoint, to end: CGPoint) {
+        let localStart = gameLayerNode.convert(start, from: self)
+        let localEnd = gameLayerNode.convert(end, from: self)
+
+        for node in gameLayerNode.children {
             guard let name = node.name,
                   let kind = BugKind(rawValue: name),
                   node.action(forKey: "capture") == nil else { continue }
-            capture(node, as: kind)
+
+            let contact = closestPoint(to: node.position, onSegmentFrom: localStart, to: localEnd)
+            let renderedSize = node.frame.size
+            let captureRadius = max(54, min(renderedSize.width, renderedSize.height) * 0.42)
+            guard hypot(node.position.x - contact.x, node.position.y - contact.y) <= captureRadius else { continue }
+            capture(node, as: kind, toward: contact)
         }
     }
 
-    private func capture(_ bug: SKNode, as kind: BugKind) {
+    private func closestPoint(to point: CGPoint, onSegmentFrom start: CGPoint, to end: CGPoint) -> CGPoint {
+        let dx = end.x - start.x
+        let dy = end.y - start.y
+        let lengthSquared = dx * dx + dy * dy
+        guard lengthSquared > 0.001 else { return start }
+        let projection = ((point.x - start.x) * dx + (point.y - start.y) * dy) / lengthSquared
+        let amount = max(0, min(1, projection))
+        return CGPoint(x: start.x + dx * amount, y: start.y + dy * amount)
+    }
+
+    private func capture(_ bug: SKNode, as kind: BugKind, toward netPosition: CGPoint) {
         bug.name = nil
         bug.removeAllActions()
 
@@ -353,9 +455,12 @@ extension GameScene {
         }
         score += gained
 
-        let position = bug.position
-        addCaptureBurst(at: position, kind: kind)
-        addScorePop(at: position, points: gained, color: kind.feedbackColor)
+        let effectPosition = effectsNode.convert(bug.position, from: gameLayerNode)
+        addCaptureBurst(at: effectPosition, kind: kind)
+        addNetRipple(at: effectPosition, color: kind.feedbackColor, strength: kind.isFriendly ? 1 : 1.2)
+        addScorePop(at: effectPosition, points: gained, color: kind.feedbackColor)
+        animateNetCatch(at: effectPosition, kind: kind)
+        tintScore(for: kind)
         shakePlayfield(intensity: kind.isFriendly ? 9 : 14)
         hitStop(duration: kind.isFriendly ? 0.04 : 0.09)
         triggerHaptic(isFriendly: kind.isFriendly)
@@ -370,42 +475,123 @@ extension GameScene {
             if run.isOver { endRound() }
         }
 
-        let squash = SKAction.scale(to: 0.88, duration: 0.05)
+        let startXScale = bug.xScale
+        let startYScale = bug.yScale
+        let squash = SKAction.group([
+            .scaleX(to: startXScale * 1.28, duration: 0.05),
+            .scaleY(to: startYScale * 0.72, duration: 0.05),
+            .colorize(with: .white, colorBlendFactor: 0.86, duration: 0.025),
+        ])
+        squash.timingMode = .easeOut
+        let pullIntoNet = SKAction.move(to: netPosition, duration: 0.20)
+        pullIntoNet.timingMode = .easeIn
+        let shrink = SKAction.scale(to: 0.035, duration: 0.20)
+        shrink.timingMode = .easeIn
+        let fade = SKAction.fadeOut(withDuration: 0.18)
+        fade.timingMode = .easeIn
         let exit = SKAction.group([
-            .scale(to: 0.06, duration: 0.22),
-            .fadeOut(withDuration: 0.22),
-            .rotate(byAngle: kind.isFriendly ? .pi * 1.5 : -.pi * 1.5, duration: 0.22),
+            pullIntoNet,
+            shrink,
+            fade,
+            .rotate(byAngle: kind.isFriendly ? .pi * 1.35 : -.pi * 1.75, duration: 0.20),
         ])
         bug.run(.sequence([squash, exit, .removeFromParent()]), withKey: "capture")
     }
 
     private func addCaptureBurst(at position: CGPoint, kind: BugKind) {
         let colors = [kind.feedbackColor, GardenPalette.cream, GardenPalette.mint]
-        for index in 0 ..< 11 {
+        let particleCount = 9 + abs(kind.points) * 2
+        for index in 0 ..< particleCount {
             let sparkle = SKShapeNode(circleOfRadius: index.isMultiple(of: 3) ? 10 : 6)
             sparkle.fillColor = colors[index % colors.count]
             sparkle.strokeColor = .clear
             sparkle.position = position
             sparkle.zPosition = 2
+            sparkle.setScale(0.35)
             effectsNode.addChild(sparkle)
 
-            let angle = CGFloat(index) / 11 * .pi * 2 + CGFloat.random(in: -0.18 ... 0.18)
-            let distance = CGFloat.random(in: 66 ... 132)
+            let angle = CGFloat(index) / CGFloat(particleCount) * .pi * 2 + CGFloat.random(in: -0.18 ... 0.18)
+            let distance = CGFloat.random(in: 72 ... 148)
             let destination = CGPoint(
                 x: position.x + cos(angle) * distance,
                 y: position.y + sin(angle) * distance)
+            let move = SKAction.move(to: destination, duration: 0.34)
+            move.timingMode = .easeOut
+            let grow = SKAction.scale(to: 1, duration: 0.08)
+            grow.timingMode = .easeOut
             sparkle.run(.sequence([
                 .group([
-                    .move(to: destination, duration: 0.32),
-                    .rotate(byAngle: .pi * 2, duration: 0.32),
+                    move,
+                    .rotate(byAngle: .pi * 2, duration: 0.34),
+                    .sequence([grow, .scale(to: 0.18, duration: 0.26)]),
                     .sequence([
                         .wait(forDuration: 0.12),
-                        .fadeOut(withDuration: 0.20),
+                        .fadeOut(withDuration: 0.22),
                     ]),
                 ]),
                 .removeFromParent(),
             ]))
         }
+    }
+
+    private func addNetRipple(at position: CGPoint, color: SKColor, strength: CGFloat) {
+        let ring = SKShapeNode(circleOfRadius: 52)
+        ring.position = position
+        ring.fillColor = .clear
+        ring.strokeColor = color.withAlphaComponent(0.9)
+        ring.lineWidth = 9
+        ring.zPosition = 1
+        ring.setScale(0.38)
+        effectsNode.addChild(ring)
+
+        let expand = SKAction.scale(to: 1.18 * strength, duration: 0.22)
+        expand.timingMode = .easeOut
+        let fade = SKAction.fadeOut(withDuration: 0.22)
+        fade.timingMode = .easeIn
+        ring.run(.sequence([.group([expand, fade]), .removeFromParent()]))
+    }
+
+    /// The hoop visibly closes around a caught bug, flashes, then overshoots
+    /// open. The controller remains independent so another touch sample can
+    /// still steer the net during this short animation.
+    private func animateNetCatch(at position: CGPoint, kind: BugKind) {
+        guard netNode.parent != nil else { return }
+        let nudge = CGVector(dx: position.x - netNode.position.x, dy: position.y - netNode.position.y)
+        netNode.position.x += nudge.dx * 0.22
+        netNode.position.y += nudge.dy * 0.22
+        netVelocity.dx += nudge.dx * 2.8
+        netVelocity.dy += nudge.dy * 2.8
+
+        netSpriteNode.removeAction(forKey: "netAppear")
+        netSpriteNode.removeAction(forKey: "netCatch")
+        let close = SKAction.group([
+            .scaleX(to: 0.37, duration: 0.045),
+            .scaleY(to: 0.23, duration: 0.045),
+            .colorize(with: kind.feedbackColor, colorBlendFactor: 0.72, duration: 0.025),
+        ])
+        close.timingMode = .easeOut
+        let rebound = SKAction.group([
+            .scaleX(to: 0.275, duration: 0.075),
+            .scaleY(to: 0.345, duration: 0.075),
+            .colorize(with: GardenPalette.cream, colorBlendFactor: 0.22, duration: 0.075),
+        ])
+        rebound.timingMode = .easeOut
+        let settle = SKAction.group([
+            .scaleX(to: 0.30, duration: 0.10),
+            .scaleY(to: 0.30, duration: 0.10),
+            .colorize(withColorBlendFactor: 0, duration: 0.10),
+        ])
+        settle.timingMode = .easeOut
+        netSpriteNode.run(.sequence([close, rebound, settle]), withKey: "netCatch")
+    }
+
+    private func tintScore(for kind: BugKind) {
+        scoreLabel.removeAction(forKey: "scoreTint")
+        scoreLabel.fontColor = kind.feedbackColor
+        scoreLabel.run(.sequence([
+            .wait(forDuration: 0.16),
+            .run { [weak self] in self?.scoreLabel.fontColor = GardenPalette.cream },
+        ]), withKey: "scoreTint")
     }
 
     private func addScorePop(at position: CGPoint, points: Int, color: SKColor) {
@@ -480,14 +666,33 @@ extension GameScene {
     }
 
     private func shakePlayfield(intensity: CGFloat) {
-        guard playfieldNode.action(forKey: "shake") == nil else { return }
-        let moves: [SKAction] = [
-            .moveBy(x: intensity, y: -intensity * 0.45, duration: 0.025),
-            .moveBy(x: -intensity * 1.45, y: intensity * 0.8, duration: 0.04),
-            .moveBy(x: intensity * 0.75, y: -intensity * 0.42, duration: 0.04),
-            .move(to: .zero, duration: 0.06),
-        ]
-        playfieldNode.run(.sequence(moves), withKey: "shake")
+        shakeTrauma = min(1, shakeTrauma + intensity / 24)
+    }
+
+    /// Additive trauma makes back-to-back catches build naturally instead of
+    /// discarding every shake after the first one. Layered sine waves keep the
+    /// motion smooth and the decay guarantees an exact return to rest.
+    private func updatePlayfieldShake(deltaTime: TimeInterval) {
+        guard deltaTime > 0 else { return }
+        guard shakeTrauma > 0 else {
+            playfieldNode.position = .zero
+            playfieldNode.zRotation = 0
+            return
+        }
+
+        shakeClock += deltaTime
+        shakeTrauma = max(0, shakeTrauma - CGFloat(deltaTime) * 3.7)
+        let amount = shakeTrauma * shakeTrauma
+        let clock = CGFloat(shakeClock)
+        let xNoise = sin(clock * 41) * 0.64 + sin(clock * 67 + 1.3) * 0.36
+        let yNoise = sin(clock * 47 + 0.8) * 0.60 + sin(clock * 73 + 2.1) * 0.40
+        playfieldNode.position = CGPoint(x: xNoise * 18 * amount, y: yNoise * 11 * amount)
+        playfieldNode.zRotation = sin(clock * 37 + 0.4) * 0.0045 * amount
+
+        if shakeTrauma == 0 {
+            playfieldNode.position = .zero
+            playfieldNode.zRotation = 0
+        }
     }
 
     private func triggerHaptic(isFriendly: Bool) {
