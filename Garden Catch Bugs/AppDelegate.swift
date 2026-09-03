@@ -18,7 +18,13 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         // Override point for customization after application launch.
 
-        PurchaseController.shared.start()
+        #if !targetEnvironment(macCatalyst)
+            // The Mac build ships without ads, so there is nothing to
+            // remove and no purchase to make. Starting StoreKit here
+            // would open a transaction listener for a product the Mac
+            // app never offers.
+            PurchaseController.shared.start()
+        #endif
 
         #if !targetEnvironment(macCatalyst)
             // The ads SDK is deliberately NOT started here. `AdConsent` starts

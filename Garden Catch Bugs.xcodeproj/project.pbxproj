@@ -8,7 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		99C0FFEE2D0200000000B001 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 99C0FFEE2D0200000000F001 /* PrivacyInfo.xcprivacy */; };
-		995EA2E92CB131FF0080EB35 /* GoogleMobileAds in Frameworks */ = {isa = PBXBuildFile; productRef = 995EA2E82CB131FF0080EB35 /* GoogleMobileAds */; };
+		995EA2E92CB131FF0080EB35 /* GoogleMobileAds in Frameworks */ = {isa = PBXBuildFile; platformFilters = (ios, ); productRef = 995EA2E82CB131FF0080EB35 /* GoogleMobileAds */; };
 		995EA2F42CB139FD0080EB35 /* SnapKit in Frameworks */ = {isa = PBXBuildFile; productRef = 995EA2F32CB139FD0080EB35 /* SnapKit */; };
 		995EA2F72CB13A3E0080EB35 /* Then in Frameworks */ = {isa = PBXBuildFile; productRef = 995EA2F62CB13A3E0080EB35 /* Then */; };
 		995EA2FA2CB13A480080EB35 /* Localize_Swift in Frameworks */ = {isa = PBXBuildFile; productRef = 995EA2F92CB13A480080EB35 /* Localize_Swift */; };
@@ -603,6 +603,7 @@
 				CURRENT_PROJECT_VERSION = 4;
 				DEVELOPMENT_TEAM = F694X76A5X;
 				INFOPLIST_FILE = "Garden Catch Bugs/Base.lproj/Info.plist";
+				"INFOPLIST_FILE[sdk=macosx*]" = "Garden Catch Bugs/Base.lproj/Info-macCatalyst.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -626,6 +627,7 @@
 				CURRENT_PROJECT_VERSION = 4;
 				DEVELOPMENT_TEAM = F694X76A5X;
 				INFOPLIST_FILE = "Garden Catch Bugs/Base.lproj/Info.plist";
+				"INFOPLIST_FILE[sdk=macosx*]" = "Garden Catch Bugs/Base.lproj/Info-macCatalyst.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 15.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",

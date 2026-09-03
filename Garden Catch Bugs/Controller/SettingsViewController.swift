@@ -119,8 +119,12 @@ class SettingsViewController: UIViewController {
         card.addSubview(stack)
         view.addSubview(spinner)
 
-        var rows = [musicRow, soundEffectsRow, removeAdsRow, restoreRow, moreAppsRow]
-        #if !targetEnvironment(macCatalyst)
+        // The Mac build has no ads, so Remove Ads and Restore Purchases have
+        // nothing to act on and are left out entirely.
+        #if targetEnvironment(macCatalyst)
+            var rows = [musicRow, soundEffectsRow, moreAppsRow]
+        #else
+            var rows = [musicRow, soundEffectsRow, removeAdsRow, restoreRow, moreAppsRow]
             if AdConsent.shared.isPrivacyOptionsRequired {
                 rows.append(privacySettingsRow)
             }
@@ -171,19 +175,23 @@ class SettingsViewController: UIViewController {
             make.center.equalTo(scrollView.frameLayoutGuide)
         }
 
-        entitlementObserver = NotificationCenter.default.addObserver(
-            forName: .adsEntitlementDidChange,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            MainActor.assumeIsolated { self?.applyEntitlementState() }
-        }
+        #if !targetEnvironment(macCatalyst)
+            entitlementObserver = NotificationCenter.default.addObserver(
+                forName: .adsEntitlementDidChange,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                MainActor.assumeIsolated { self?.applyEntitlementState() }
+            }
+        #endif
 
-        applyEntitlementState()
-        Task {
-            await purchases.loadProducts()
+        #if !targetEnvironment(macCatalyst)
             applyEntitlementState()
-        }
+            Task {
+                await purchases.loadProducts()
+                applyEntitlementState()
+            }
+        #endif
     }
 }
 
