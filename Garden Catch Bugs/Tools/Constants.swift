@@ -21,6 +21,8 @@ struct Constants {
     static let novelsHubAppID = "1528820845"
     static let nasaLoverID = "1595232677"
     
+    static let privacyPolicyURL = "https://apps-bay.github.io/Apps-Bay-Website/privacy/"
+
     static let bannerAdUnitID = Bundle.main.object(forInfoDictionaryKey: "BannerAdUnitID") as? String ?? ""
     static let interstitialAdID = Bundle.main.object(forInfoDictionaryKey: "InterstitialAdID") as? String ?? ""
     static let rewardAdUnitID = Bundle.main.object(forInfoDictionaryKey: "rewardAdUnitID") as? String ?? ""

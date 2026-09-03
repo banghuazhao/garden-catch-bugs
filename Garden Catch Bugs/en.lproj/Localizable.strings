@@ -40,6 +40,11 @@
 "No previous purchase was found for this Apple Account." = "No previous purchase was found for this Apple Account.";
 "OK" = "OK";
 
+/* Privacy and consent */
+"Privacy Settings" = "Privacy Settings";
+"Privacy Policy" = "Privacy Policy";
+"Privacy settings are unavailable right now. Please try again later." = "Privacy settings are unavailable right now. Please try again later.";
+
 /* More Apps entries */
 "Memory Game" = "Memory Game";
 "Match Pairs Card Game" = "Match Pairs Card Game";
@@ -54,3 +59,4 @@
 "Wave %d" = "Wave %d";
 "Combo x%d" = "Combo x%d";
 "Extra Life!" = "Extra Life!";
+"Net stays active — swing sideways to change its facing!" = "Net stays active — swing sideways to change its facing!";

@@ -7,4 +7,4 @@
 */
 
 "CFBundleDisplayName" = "抓蟲子";
-"NSUserTrackingUsageDescription" = "該標識符將用於向您投放個性化廣告。";
+"NSUserTrackingUsageDescription" = "《花園：抓蟲子》使用該標識符來決定在花園下方的橫幅廣告位和每局結束後的頁面上展示哪些廣告——例如，向您展示其他益智和街機遊戲，而不是與您無關的商品。";

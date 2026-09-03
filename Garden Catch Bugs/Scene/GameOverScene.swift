@@ -270,7 +270,7 @@ extension GameOverScene {
 
     #if !targetEnvironment(macCatalyst)
         private func presentInterstitialIfDue(from view: SKView) {
-            guard adsAllowed else { return }
+            guard adsAllowed, AdConsent.shared.canRequestAds else { return }
             let defaults = UserDefaults.standard
             let roundsSinceAd = defaults.integer(forKey: Constants.UserDefaultsKeys.ROUNDS_SINCE_AD) + 1
             guard roundsSinceAd >= Self.interstitialRoundInterval else {
@@ -279,7 +279,7 @@ extension GameOverScene {
             }
             defaults.set(0, forKey: Constants.UserDefaultsKeys.ROUNDS_SINCE_AD)
 
-            GADInterstitialAd.load(withAdUnitID: Constants.interstitialAdID, request: GADRequest()) { [weak self] ad, error in
+            GADInterstitialAd.load(withAdUnitID: Constants.interstitialAdID, request: AdConsent.shared.makeRequest()) { [weak self] ad, error in
                 if let error {
                     print("Failed to load interstitial ad with error: \(error.localizedDescription)")
                     return

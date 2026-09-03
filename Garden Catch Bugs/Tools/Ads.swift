@@ -6,38 +6,12 @@
 //  Copyright © 2021 Banghua Zhao. All rights reserved.
 //
 
-import AdSupport
-import AppTrackingTransparency
 import Foundation
 import UIKit
 #if !targetEnvironment(macCatalyst)
     import GoogleMobileAds
 #endif
 
-func requestATTPermission() {
-    ATTrackingManager.requestTrackingAuthorization { status in
-        switch status {
-        case .authorized:
-            // Tracking authorization dialog was shown
-            // and we are authorized
-            print("Authorized")
-
-            // Now that we are authorized we can get the IDFA
-            print(ASIdentifierManager.shared().advertisingIdentifier)
-        case .denied:
-            // Tracking authorization dialog was
-            // shown and permission is denied
-            print("Denied")
-        case .notDetermined:
-            // Tracking authorization dialog has not been shown
-            print("Not Determined")
-        case .restricted:
-            print("Restricted")
-        @unknown default:
-            print("Unknown")
-        }
-    }
-}
 
 #if !targetEnvironment(macCatalyst)
     /// An anchored adaptive banner that keeps its ad size in step with its width.
@@ -51,11 +25,29 @@ func requestATTPermission() {
 
         private var requestedWidth: CGFloat = 0
 
+        private var consentObserver: NSObjectProtocol?
+
         convenience init(rootViewController: UIViewController) {
             self.init(adSize: GADAdSizeBanner)
             adUnitID = Constants.bannerAdUnitID
             self.rootViewController = rootViewController
             translatesAutoresizingMaskIntoConstraints = false
+            // Laid out before the user has answered, the banner would otherwise
+            // fire a request the consent flow has not authorised yet. Wait for
+            // the answer, then request once.
+            consentObserver = NotificationCenter.default.addObserver(
+                forName: .adConsentDidResolve,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                MainActor.assumeIsolated { self?.requestIfPossible() }
+            }
+        }
+
+        deinit {
+            if let consentObserver {
+                NotificationCenter.default.removeObserver(consentObserver)
+            }
         }
 
         /// Pins the banner to the bottom safe area. No width or height constraint:
@@ -70,6 +62,13 @@ func requestATTPermission() {
 
         override func layoutSubviews() {
             super.layoutSubviews()
+            requestIfPossible()
+        }
+
+        /// Sizes and requests, but only once consent has an answer and only
+        /// when the width actually changed (rotation, iPad multitasking).
+        private func requestIfPossible() {
+            guard AdConsent.shared.isResolved, AdConsent.shared.canRequestAds else { return }
             let width = superview?.bounds.width ?? bounds.width
             guard width > 0, abs(width - requestedWidth) > 1 else { return }
             requestedWidth = width
@@ -78,7 +77,7 @@ func requestATTPermission() {
             // a ceiling, so the banner still spans the full width but never
             // exceeds the standard 50pt bar.
             adSize = GADInlineAdaptiveBannerAdSizeWithWidthAndMaxHeight(width, AdaptiveBannerView.maxHeight)
-            load(GADRequest())
+            load(AdConsent.shared.makeRequest())
         }
     }
 

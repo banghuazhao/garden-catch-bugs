@@ -7,4 +7,4 @@
 */
 
 "CFBundleDisplayName" = "Catch Bugs";
-"NSUserTrackingUsageDescription" = "This identifier will be used to deliver personalized ads to you.";
+"NSUserTrackingUsageDescription" = "Garden: Catch Bugs uses this identifier to choose which ads appear on the banner below the garden and on the screen after a round — for example, showing you other puzzle and arcade games rather than unrelated products.";

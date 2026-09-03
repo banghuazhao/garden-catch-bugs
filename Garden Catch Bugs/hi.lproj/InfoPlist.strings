@@ -7,4 +7,4 @@
 */
 
 "CFBundleDisplayName" = "गार्डन कैच बग्स";
-"NSUserTrackingUsageDescription" = "This identifier will be used to deliver personalized ads to you.";
+"NSUserTrackingUsageDescription" = "Garden: Catch Bugs इस पहचानकर्ता का उपयोग यह तय करने के लिए करता है कि बगीचे के नीचे बैनर पर और राउंड के बाद वाली स्क्रीन पर कौन से विज्ञापन दिखाए जाएं — उदाहरण के लिए, असंबंधित उत्पादों के बजाय आपको अन्य पहेली और आर्केड गेम दिखाना।";

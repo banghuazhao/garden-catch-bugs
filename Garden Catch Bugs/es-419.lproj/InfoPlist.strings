@@ -7,4 +7,4 @@
 */
 
 "CFBundleDisplayName" = "Jardín atrapa insectos";
-"NSUserTrackingUsageDescription" = "This identifier will be used to deliver personalized ads to you.";
+"NSUserTrackingUsageDescription" = "Garden: Catch Bugs usa este identificador para elegir qué anuncios aparecen en el banner debajo del jardín y en la pantalla posterior a cada partida; por ejemplo, para mostrarte otros juegos de rompecabezas y arcade en lugar de productos que no tienen relación.";

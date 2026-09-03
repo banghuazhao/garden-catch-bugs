@@ -92,6 +92,18 @@ class SettingsViewController: UIViewController {
         action: #selector(showMoreApps),
         accessory: UIImageView(image: UIImage(systemName: "chevron.right")).then { $0.tintColor = .black })
 
+    /// Reopens the consent form. Shown only where a consent form was required
+    /// in the first place, which is what UMP reports.
+    lazy var privacySettingsRow = makeActionRow(
+        title: "Privacy Settings".localized(),
+        action: #selector(privacySettingsTapped),
+        accessory: UIImageView(image: UIImage(systemName: "chevron.right")).then { $0.tintColor = .black })
+
+    lazy var privacyPolicyRow = makeActionRow(
+        title: "Privacy Policy".localized(),
+        action: #selector(privacyPolicyTapped),
+        accessory: UIImageView(image: UIImage(systemName: "arrow.up.right")).then { $0.tintColor = .black })
+
     lazy var spinner = UIActivityIndicatorView(style: .medium).then { spinner in
         spinner.hidesWhenStopped = true
         spinner.color = .black
@@ -107,7 +119,15 @@ class SettingsViewController: UIViewController {
         card.addSubview(stack)
         view.addSubview(spinner)
 
-        for (index, row) in [musicRow, soundEffectsRow, removeAdsRow, restoreRow, moreAppsRow].enumerated() {
+        var rows = [musicRow, soundEffectsRow, removeAdsRow, restoreRow, moreAppsRow]
+        #if !targetEnvironment(macCatalyst)
+            if AdConsent.shared.isPrivacyOptionsRequired {
+                rows.append(privacySettingsRow)
+            }
+        #endif
+        rows.append(privacyPolicyRow)
+
+        for (index, row) in rows.enumerated() {
             if index > 0 { stack.addArrangedSubview(makeSeparator()) }
             stack.addArrangedSubview(row)
             row.snp.makeConstraints { make in make.height.equalTo(56) }
@@ -353,6 +373,25 @@ extension SettingsViewController {
         let moreApps = MoreAppsViewController()
         moreApps.modalPresentationStyle = .fullScreen
         present(moreApps, animated: true)
+    }
+
+    @objc func privacySettingsTapped() {
+        #if !targetEnvironment(macCatalyst)
+            setBusy(true)
+            AdConsent.shared.presentPrivacyOptions(from: self) { [weak self] error in
+                guard let self else { return }
+                setBusy(false)
+                if error != nil {
+                    showMessage("Unavailable".localized(),
+                                "Privacy settings are unavailable right now. Please try again later.".localized())
+                }
+            }
+        #endif
+    }
+
+    @objc func privacyPolicyTapped() {
+        guard let url = URL(string: Constants.privacyPolicyURL) else { return }
+        UIApplication.shared.open(url)
     }
 
     @objc func backToHome() {

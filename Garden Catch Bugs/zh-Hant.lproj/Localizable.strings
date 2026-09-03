@@ -85,6 +85,11 @@
 "No previous purchase was found for this Apple Account." = "找不到此 Apple 帳戶的過往購買記錄。";
 "OK" = "好";
 
+/* Privacy and consent */
+"Privacy Settings" = "隱私設定";
+"Privacy Policy" = "隱私政策";
+"Privacy settings are unavailable right now. Please try again later." = "隱私設定暫時無法開啟，請稍後再試。";
+
 /* 更多應用條目 */
 "Memory Game" = "記憶翻牌";
 "Match Pairs Card Game" = "配對記憶卡牌遊戲";
@@ -99,3 +104,4 @@
 "Wave %d" = "第 %d 波";
 "Combo x%d" = "連擊 x%d";
 "Extra Life!" = "額外生命!";
+"Net stays active — swing sideways to change its facing!" = "捕蟲網持續生效 — 左右揮動改變朝向！";

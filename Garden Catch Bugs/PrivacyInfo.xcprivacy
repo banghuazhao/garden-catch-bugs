@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- The app itself collects nothing. High scores, audio settings, the
+	     launch counter and the ad-removal entitlement are stored on device and
+	     never leave it. Advertising data is collected by Google Mobile Ads,
+	     which declares that in its own manifest inside its framework.
+
+	     NSPrivacyTracking is deliberately absent: this app does no first-party
+	     tracking and owns no tracking domains, and Apple rejects the flag
+	     (ITMS-91064) unless NSPrivacyTrackingDomains is a populated list. -->
+	<key>NSPrivacyCollectedDataTypes</key>
+	<array/>
+	<key>NSPrivacyAccessedAPITypes</key>
+	<array>
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryUserDefaults</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>CA92.1</string>
+			</array>
+		</dict>
+	</array>
+</dict>
+</plist>

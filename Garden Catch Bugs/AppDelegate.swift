@@ -21,10 +21,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         PurchaseController.shared.start()
 
         #if !targetEnvironment(macCatalyst)
-            // A purchaser never starts the ads SDK at all.
-            if adsAllowed {
-                GADMobileAds.sharedInstance().start(completionHandler: nil)
-            }
+            // The ads SDK is deliberately NOT started here. `AdConsent` starts
+            // it only after consent has an answer, so no request can go out
+            // before the user has been asked. A purchaser never starts it at all.
         #else
             UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.forEach { windowScene in
                 windowScene.sizeRestrictions?.maximumSize = CGSize(width: 1280, height: 720)
@@ -61,9 +60,13 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         resumeBackgroundMusic()
 
         #if !targetEnvironment(macCatalyst)
-            // Tracking permission exists only to serve ads.
+            // Consent is gathered from here because ATT is only shown to a
+            // foreground-active app; asked any earlier the system silently
+            // returns `.denied`. `resolve` is idempotent, so returning from the
+            // background never re-prompts.
             if adsAllowed {
-                requestATTPermission()
+                let root = window?.rootViewController
+                AdConsent.shared.resolve(from: root?.presentedViewController ?? root)
             }
         #endif
     }

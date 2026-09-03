@@ -3,6 +3,7 @@
 //  Garden Catch BugsTests
 //
 
+import CoreGraphics
 import XCTest
 @testable import Garden_Catch_Bugs
 
@@ -264,6 +265,80 @@ final class GameModeTests: XCTestCase {
         XCTAssertTrue(BugKind.friendlies.allSatisfy(\.isFriendly))
         XCTAssertTrue(BugKind.pests.allSatisfy { !$0.isFriendly })
         XCTAssertEqual(BugKind.friendlies.count + BugKind.pests.count, BugKind.allCases.count)
+    }
+}
+
+// MARK: - Directional net physics
+
+final class NetControlPhysicsTests: XCTestCase {
+    func testNetMirrorsOppositeHorizontalSwing() {
+        XCTAssertEqual(
+            NetControlPhysics.trailingHorizontalScale(
+                for: CGVector(dx: 20, dy: 0),
+                current: 1),
+            -1)
+        XCTAssertEqual(
+            NetControlPhysics.trailingHorizontalScale(
+                for: CGVector(dx: -20, dy: 0),
+                current: -1),
+            1)
+    }
+
+    func testVerticalMovementKeepsLastFacing() {
+        XCTAssertEqual(
+            NetControlPhysics.trailingHorizontalScale(
+                for: CGVector(dx: 0, dy: 20),
+                current: -1),
+            -1)
+        XCTAssertEqual(
+            NetControlPhysics.trailingHorizontalScale(
+                for: CGVector(dx: 2, dy: -20),
+                current: 1),
+            1)
+    }
+
+    func testMirroredCaptureAxisMatchesArtwork() {
+        let leftPose = NetControlPhysics.captureAxisAngle(forHorizontalScale: 1)
+        let rightPose = NetControlPhysics.captureAxisAngle(forHorizontalScale: -1)
+
+        XCTAssertEqual(leftPose, NetControlPhysics.artworkForwardAngle, accuracy: 0.000_1)
+        XCTAssertEqual(
+            rightPose,
+            .pi - NetControlPhysics.artworkForwardAngle,
+            accuracy: 0.000_1)
+    }
+
+    func testCaptureEllipseUsesFacingAxis() {
+        let point = CGPoint(x: 0, y: 60)
+        let unrotated = NetControlPhysics.normalizedCaptureDistance(
+            from: point,
+            toSegmentFrom: .zero,
+            to: .zero,
+            axisRotation: 0,
+            xRadius: 72,
+            yRadius: 30)
+        let quarterTurn = NetControlPhysics.normalizedCaptureDistance(
+            from: point,
+            toSegmentFrom: .zero,
+            to: .zero,
+            axisRotation: .pi / 2,
+            xRadius: 72,
+            yRadius: 30)
+
+        XCTAssertGreaterThan(unrotated, 1)
+        XCTAssertLessThan(quarterTurn, 1)
+    }
+
+    func testSweptEllipseCatchesBetweenFrames() {
+        let distance = NetControlPhysics.normalizedCaptureDistance(
+            from: .zero,
+            toSegmentFrom: CGPoint(x: -120, y: 0),
+            to: CGPoint(x: 120, y: 0),
+            axisRotation: 0,
+            xRadius: 40,
+            yRadius: 20)
+
+        XCTAssertEqual(distance, 0, accuracy: 0.000_1)
     }
 }
 

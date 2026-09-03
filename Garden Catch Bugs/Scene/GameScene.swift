@@ -92,7 +92,72 @@ private enum GardenPalette {
     static let amber = SKColor(red: 0.98, green: 0.76, blue: 0.24, alpha: 1)
 }
 
+/// Small, deterministic pieces of the net controller kept separate from the
+/// SpriteKit nodes so the directional capture rules can be unit tested.
+struct NetControlPhysics {
+    /// Long axis of the net mouth in the unmirrored artwork, measured from the
+    /// positive x-axis. Gameplay only mirrors this pose horizontally; it never
+    /// introduces an in-between rigid-body rotation.
+    static let artworkForwardAngle: CGFloat = 1.107
+
+    /// The net leans against horizontal hand travel, like a light tool trailing
+    /// behind a swing. Small horizontal noise and purely vertical travel retain
+    /// the last side instead of flickering between poses.
+    static func trailingHorizontalScale(for movement: CGVector, current: CGFloat) -> CGFloat {
+        guard abs(movement.dx) >= 3 else { return current < 0 ? -1 : 1 }
+        return movement.dx > 0 ? -1 : 1
+    }
+
+    static func captureAxisAngle(forHorizontalScale scale: CGFloat) -> CGFloat {
+        scale < 0 ? .pi - artworkForwardAngle : artworkForwardAngle
+    }
+
+    /// Distance in a unit ellipse from `point` to a swept capture segment.
+    /// Values at or below one are inside. Scaling into ellipse space before
+    /// projecting makes the result directional instead of circular.
+    static func normalizedCaptureDistance(
+        from point: CGPoint,
+        toSegmentFrom start: CGPoint,
+        to end: CGPoint,
+        axisRotation: CGFloat,
+        xRadius: CGFloat,
+        yRadius: CGFloat
+    ) -> CGFloat {
+        guard xRadius > 0, yRadius > 0 else { return .greatestFiniteMagnitude }
+        let cosine = cos(axisRotation)
+        let sine = sin(axisRotation)
+
+        func normalized(_ worldPoint: CGPoint) -> CGPoint {
+            let dx = worldPoint.x - end.x
+            let dy = worldPoint.y - end.y
+            return CGPoint(
+                x: (cosine * dx + sine * dy) / xRadius,
+                y: (-sine * dx + cosine * dy) / yRadius)
+        }
+
+        let localPoint = normalized(point)
+        let localStart = normalized(start)
+        let segmentX = -localStart.x
+        let segmentY = -localStart.y
+        let lengthSquared = segmentX * segmentX + segmentY * segmentY
+        guard lengthSquared > 0.000_001 else { return hypot(localPoint.x, localPoint.y) }
+
+        let projection = ((localPoint.x - localStart.x) * segmentX
+            + (localPoint.y - localStart.y) * segmentY) / lengthSquared
+        let amount = max(0, min(1, projection))
+        let closestX = localStart.x + segmentX * amount
+        let closestY = localStart.y + segmentY * amount
+        return hypot(localPoint.x - closestX, localPoint.y - closestY)
+    }
+}
+
 final class GameScene: SKScene {
+    private static let netRestingScale: CGFloat = 0.3
+    private static let netArtworkSize = CGSize(width: 378, height: 492)
+    private static let netHoopCenterInArtwork = CGPoint(x: 164, y: 348)
+    private static let survivalCaptureRadii = CGSize(width: 72, height: 44)
+    private static let survivalNetInset: CGFloat = 120
+
     private let catchBadBugSound = SKAction.playSoundFileNamed("抓到害虫.mp3", waitForCompletion: false)
     private let catchGoodBugSound = SKAction.playSoundFileNamed("抓到益虫.mp3", waitForCompletion: false)
     private let tapSound = SKAction.playSoundFileNamed("按键.mp3", waitForCompletion: false)
@@ -109,6 +174,9 @@ final class GameScene: SKScene {
     private var isTimerUrgent = false
     private var netTargetPosition: CGPoint?
     private var netVelocity = CGVector.zero
+    private var netFacingScale: CGFloat = 1
+    private var previousSurvivalNetCenter: CGPoint?
+    private var previousSurvivalNetAxisAngle: CGFloat?
     private var shakeTrauma: CGFloat = 0
     private var shakeClock: TimeInterval = 0
 
@@ -143,17 +211,35 @@ final class GameScene: SKScene {
         didSet { updateScoreUI() }
     }
 
-    /// A controller node follows the finger with a spring while the sprite is
-    /// free to squash independently on catches.
+    /// A controller node follows the finger with a spring. A separate facing
+    /// node mirrors the complete net around its hoop centre without rotating it.
     private let netNode = SKNode()
+    private let netFacingNode = SKNode()
     private lazy var netSpriteNode: SKSpriteNode = {
         let node = SKSpriteNode(imageNamed: "net")
+        // Mirroring around the hoop keeps the rim on the control/capture point
+        // while the handle, rim and bag change side as one silhouette.
+        node.anchorPoint = CGPoint(
+            x: GameScene.netHoopCenterInArtwork.x / GameScene.netArtworkSize.width,
+            y: GameScene.netHoopCenterInArtwork.y / GameScene.netArtworkSize.height)
         node.zPosition = 0
-        node.setScale(0.3)
+        node.setScale(GameScene.netRestingScale)
         netNode.zPosition = 4
+        netNode.addChild(netFacingNode)
+        netFacingNode.addChild(node)
+        return node
+    }()
+    private lazy var netMouthNode: SKNode = {
+        let node = SKNode()
+        node.position = .zero
+        node.zPosition = -1
         netNode.addChild(node)
         return node
     }()
+
+    private var survivalCaptureAxisAngle: CGFloat {
+        NetControlPhysics.captureAxisAngle(forHorizontalScale: netFacingScale)
+    }
 
     private let scoreLabel = GameScene.makeHUDLabel(alignment: .center)
     private let bestScoreLabel = GameScene.makeHUDLabel(alignment: .center)
@@ -181,6 +267,9 @@ final class GameScene: SKScene {
         playBackgroundMusic(filename: "游戏音乐.mp3", repeatForever: true)
         createWorld()
         createHUD()
+        if mode == .survival {
+            deploySurvivalNet()
+        }
         startSpawningBugs()
     }
 
@@ -197,6 +286,8 @@ final class GameScene: SKScene {
         let feedbackDeltaTime = min(deltaTime, 1.0 / 15.0)
         updateNetMotion(deltaTime: feedbackDeltaTime)
         updatePlayfieldShake(deltaTime: feedbackDeltaTime)
+        captureBugsWithSurvivalNet()
+        guard !gameEnded else { return }
         elapsed += deltaTime
 
         switch mode {
@@ -241,7 +332,9 @@ extension GameScene {
 
         lastSlicePoint = location
         beginNet(at: location)
-        captureBugs(from: location, to: location)
+        if mode == .classic {
+            captureBugs(from: location, to: location)
+        }
     }
 
     override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
@@ -250,11 +343,13 @@ extension GameScene {
         let previousLocation = lastSlicePoint
         lastSlicePoint = location
 
-        moveNet(toward: location)
+        moveNet(toward: location, from: previousLocation)
         if let previousLocation {
-            addSwipeTrail(from: previousLocation, to: location)
-            captureBugs(from: previousLocation, to: location)
-        } else {
+            if mode == .classic {
+                addSwipeTrail(from: previousLocation, to: location)
+                captureBugs(from: previousLocation, to: location)
+            }
+        } else if mode == .classic {
             captureBugs(from: location, to: location)
         }
     }
@@ -307,42 +402,93 @@ extension GameScene {
 // MARK: - Game feel
 
 extension GameScene {
+    private func deploySurvivalNet() {
+        let start = clampedSurvivalNetPosition(CGPoint(
+            x: size.width * 0.5,
+            y: bottomLimit + (topLimit - bottomLimit) * 0.42))
+        beginNet(at: start)
+        addSurvivalCaptureGuide()
+        previousSurvivalNetCenter = survivalNetCaptureCenter()
+        previousSurvivalNetAxisAngle = survivalCaptureAxisAngle
+
+        run(.sequence([
+            .wait(forDuration: 0.24),
+            .run { [weak self] in
+                self?.showToast(
+                    "Net stays active — swing sideways to change its facing!".localized(),
+                    color: GardenPalette.mint)
+            },
+        ]), withKey: "survivalNetHint")
+    }
+
     private func beginNet(at location: CGPoint) {
-        netTargetPosition = location
+        let target = mode == .survival ? clampedSurvivalNetPosition(location) : location
+
+        // Survival owns one persistent net. A new touch only moves its target;
+        // resetting the node here would teleport it and create a false catch.
+        if mode == .survival, netNode.parent != nil {
+            netTargetPosition = target
+            return
+        }
+
+        netTargetPosition = target
         netVelocity = .zero
-        netNode.position = location
+        netFacingScale = 1
+        netNode.position = target
         netNode.zRotation = 0
         netNode.alpha = 1
         netNode.setScale(1)
         netNode.removeAction(forKey: "netDismiss")
 
         _ = netSpriteNode
+        _ = netMouthNode
+        netFacingNode.xScale = netFacingScale
         netSpriteNode.removeAllActions()
+        netSpriteNode.position = .zero
         netSpriteNode.alpha = 0.25
         netSpriteNode.colorBlendFactor = 0
-        netSpriteNode.xScale = 0.24
-        netSpriteNode.yScale = 0.35
+        netSpriteNode.setScale(0.24)
         if netNode.parent == nil {
             effectsNode.addChild(netNode)
         }
 
-        let openX = SKAction.scaleX(to: 0.31, duration: 0.07)
-        let settleX = SKAction.scaleX(to: 0.30, duration: 0.09)
-        let settleY = SKAction.scaleY(to: 0.30, duration: 0.16)
-        [openX, settleX, settleY].forEach { $0.timingMode = .easeOut }
+        let open = SKAction.scale(to: GameScene.netRestingScale + 0.018, duration: 0.09)
+        let settle = SKAction.scale(to: GameScene.netRestingScale, duration: 0.11)
+        [open, settle].forEach { $0.timingMode = .easeOut }
         netSpriteNode.run(.group([
-            .sequence([openX, settleX]),
-            settleY,
+            .sequence([open, settle]),
             .fadeIn(withDuration: 0.06),
         ]), withKey: "netAppear")
-        addNetRipple(at: location, color: GardenPalette.mint, strength: 0.65)
+        addNetRipple(at: target, color: GardenPalette.mint, strength: 0.65)
     }
 
-    private func moveNet(toward location: CGPoint) {
-        netTargetPosition = location
+    private func moveNet(toward location: CGPoint, from previousLocation: CGPoint?) {
+        netTargetPosition = mode == .survival ? clampedSurvivalNetPosition(location) : location
+
+        guard let previousLocation else { return }
+        let movement = CGVector(
+            dx: location.x - previousLocation.x,
+            dy: location.y - previousLocation.y)
+        let proposedFacing = NetControlPhysics.trailingHorizontalScale(
+            for: movement,
+            current: netFacingScale)
+        guard proposedFacing != netFacingScale else { return }
+
+        netFacingScale = proposedFacing
+        netFacingNode.xScale = proposedFacing
+        updateSurvivalCaptureGuideOrientation()
     }
 
     private func hideNet() {
+        if mode == .survival {
+            if gameState != .playing {
+                netVelocity = .zero
+            }
+            previousSurvivalNetCenter = survivalNetCaptureCenter()
+            previousSurvivalNetAxisAngle = survivalCaptureAxisAngle
+            return
+        }
+
         netTargetPosition = nil
         netVelocity = .zero
 
@@ -361,37 +507,82 @@ extension GameScene {
         netNode.run(.sequence([settle, .removeFromParent()]), withKey: "netDismiss")
     }
 
-    /// The hit test stays on the finger for responsiveness, while only the
-    /// artwork follows this spring. That gives the net weight without adding
-    /// input latency or changing the game rules.
+    /// Classic keeps its forgiving finger hit test. Survival uses this delayed
+    /// position for capture; facing is a stable two-state horizontal mirror.
     private func updateNetMotion(deltaTime: TimeInterval) {
         guard let target = netTargetPosition, netNode.parent != nil, deltaTime > 0 else { return }
         let dt = CGFloat(deltaTime)
         let offset = CGVector(dx: target.x - netNode.position.x, dy: target.y - netNode.position.y)
-        let stiffness: CGFloat = 76
-        let damping = exp(-10.5 * dt)
+        let stiffness: CGFloat = mode == .survival ? 66 : 76
+        let damping = exp(-(mode == .survival ? 10.4 : 10.5) * dt)
 
         netVelocity.dx = (netVelocity.dx + offset.dx * stiffness * dt) * damping
         netVelocity.dy = (netVelocity.dy + offset.dy * stiffness * dt) * damping
         netNode.position.x += netVelocity.dx * dt
         netNode.position.y += netVelocity.dy * dt
 
+        if mode == .survival {
+            let boundedPosition = clampedSurvivalNetPosition(netNode.position)
+            if boundedPosition.x != netNode.position.x { netVelocity.dx = 0 }
+            if boundedPosition.y != netNode.position.y { netVelocity.dy = 0 }
+            netNode.position = boundedPosition
+        }
+
         if hypot(offset.dx, offset.dy) < 0.4, hypot(netVelocity.dx, netVelocity.dy) < 5 {
             netNode.position = target
             netVelocity = .zero
         }
 
-        let desiredLean = max(-0.16, min(0.16, -netVelocity.dx / 5_200))
-        let rotationBlend = 1 - pow(0.001, dt)
-        netNode.zRotation += (desiredLean - netNode.zRotation) * rotationBlend
-
         guard netSpriteNode.action(forKey: "netAppear") == nil,
               netSpriteNode.action(forKey: "netCatch") == nil else { return }
-        let speed = hypot(netVelocity.dx, netVelocity.dy)
-        let stretch = min(0.052, speed / 10_000)
+        // Movement no longer stretches the rod. It settles as one rigid sprite;
+        // impact feedback remains on the short catch animation below.
         let scaleBlend = min(1, dt * 16)
-        netSpriteNode.xScale += (0.30 + stretch - netSpriteNode.xScale) * scaleBlend
-        netSpriteNode.yScale += (0.30 - stretch * 0.48 - netSpriteNode.yScale) * scaleBlend
+        let currentScale = (netSpriteNode.xScale + netSpriteNode.yScale) * 0.5
+        let unifiedScale = currentScale
+            + (GameScene.netRestingScale - currentScale) * scaleBlend
+        netSpriteNode.setScale(unifiedScale)
+    }
+
+    private func clampedSurvivalNetPosition(_ position: CGPoint) -> CGPoint {
+        let inset = GameScene.survivalNetInset
+        let minX = min(inset, size.width / 2)
+        let maxX = max(minX, size.width - inset)
+        let minY = min(bottomLimit + inset, (bottomLimit + topLimit) / 2)
+        let maxY = max(minY, topLimit - inset)
+        return CGPoint(
+            x: max(minX, min(maxX, position.x)),
+            y: max(minY, min(maxY, position.y)))
+    }
+
+    private func addSurvivalCaptureGuide() {
+        guard netMouthNode.childNode(withName: "survivalCaptureGuide") == nil else { return }
+        let radii = GameScene.survivalCaptureRadii
+        let guide = SKShapeNode(ellipseOf: CGSize(
+            width: radii.width * 2,
+            height: radii.height * 2))
+        guide.name = "survivalCaptureGuide"
+        guide.zRotation = survivalCaptureAxisAngle
+        guide.fillColor = GardenPalette.mint.withAlphaComponent(0.09)
+        guide.strokeColor = GardenPalette.mint.withAlphaComponent(0.74)
+        guide.lineWidth = 3
+        guide.glowWidth = 5
+        guide.alpha = 0.32
+        guide.zPosition = -1
+        netMouthNode.addChild(guide)
+        guide.run(.repeatForever(.sequence([
+            .fadeAlpha(to: 0.48, duration: 0.72),
+            .fadeAlpha(to: 0.28, duration: 0.72),
+        ])), withKey: "captureGuidePulse")
+    }
+
+    private func updateSurvivalCaptureGuideOrientation() {
+        netMouthNode.childNode(withName: "survivalCaptureGuide")?.zRotation =
+            survivalCaptureAxisAngle
+    }
+
+    private func survivalNetCaptureCenter() -> CGPoint {
+        effectsNode.convert(.zero, from: netMouthNode)
     }
 
     private func addSwipeTrail(from start: CGPoint, to end: CGPoint) {
@@ -428,6 +619,79 @@ extension GameScene {
             let captureRadius = max(54, min(renderedSize.width, renderedSize.height) * 0.42)
             guard hypot(node.position.x - contact.x, node.position.y - contact.y) <= captureRadius else { continue }
             capture(node, as: kind, toward: contact)
+        }
+    }
+
+    /// Survival catches with the visible mouth rather than the finger. Both
+    /// discrete left/right poses are checked across a facing change, without
+    /// inventing an invisible in-between rotation.
+    private func captureBugsWithSurvivalNet() {
+        guard mode == .survival, netNode.parent != nil else { return }
+
+        let currentCenter = survivalNetCaptureCenter()
+        let currentAxisAngle = survivalCaptureAxisAngle
+        let previousCenter = previousSurvivalNetCenter ?? currentCenter
+        let previousAxisAngle = previousSurvivalNetAxisAngle ?? currentAxisAngle
+
+        previousSurvivalNetCenter = currentCenter
+        previousSurvivalNetAxisAngle = currentAxisAngle
+
+        // Unlike the Classic swipe trail, this follows the delayed hoop and is
+        // therefore an honest preview of where a catch can happen.
+        addSwipeTrail(from: previousCenter, to: currentCenter)
+
+        guard gameLayerNode.speed > 0, !gameEnded else { return }
+        let radii = GameScene.survivalCaptureRadii
+
+        for node in gameLayerNode.children {
+            guard let name = node.name,
+                  let kind = BugKind(rawValue: name),
+                  node.action(forKey: "capture") == nil else { continue }
+
+            // Bug positions are kept in the playfield's logical coordinates.
+            // Screen shake remains visual and cannot accidentally create hits.
+            let bugPosition = node.position
+            let renderedSize = node.frame.size
+            let bugAllowance = max(8, min(renderedSize.width, renderedSize.height) * 0.16)
+            let xRadius = radii.width + bugAllowance
+            let yRadius = radii.height + bugAllowance
+
+            let previousPoseSweepDistance = NetControlPhysics.normalizedCaptureDistance(
+                from: bugPosition,
+                toSegmentFrom: previousCenter,
+                to: currentCenter,
+                axisRotation: previousAxisAngle,
+                xRadius: xRadius,
+                yRadius: yRadius)
+            let currentPoseSweepDistance = NetControlPhysics.normalizedCaptureDistance(
+                from: bugPosition,
+                toSegmentFrom: previousCenter,
+                to: currentCenter,
+                axisRotation: currentAxisAngle,
+                xRadius: xRadius,
+                yRadius: yRadius)
+            let startDistance = NetControlPhysics.normalizedCaptureDistance(
+                from: bugPosition,
+                toSegmentFrom: previousCenter,
+                to: previousCenter,
+                axisRotation: previousAxisAngle,
+                xRadius: xRadius,
+                yRadius: yRadius)
+            let endDistance = NetControlPhysics.normalizedCaptureDistance(
+                from: bugPosition,
+                toSegmentFrom: currentCenter,
+                to: currentCenter,
+                axisRotation: currentAxisAngle,
+                xRadius: xRadius,
+                yRadius: yRadius)
+
+            let captureDistance = min(
+                min(previousPoseSweepDistance, currentPoseSweepDistance),
+                min(startDistance, endDistance))
+            guard captureDistance <= 1 else { continue }
+            let pullTarget = gameLayerNode.convert(currentCenter, from: effectsNode)
+            capture(node, as: kind, toward: pullTarget)
+            if gameEnded { return }
         }
     }
 
@@ -551,34 +815,36 @@ extension GameScene {
         ring.run(.sequence([.group([expand, fade]), .removeFromParent()]))
     }
 
-    /// The hoop visibly closes around a caught bug, flashes, then overshoots
-    /// open. The controller remains independent so another touch sample can
-    /// still steer the net during this short animation.
+    /// A uniform snap and rebound preserve the rigid silhouette while color,
+    /// particles and hit-stop carry the catch impact.
     private func animateNetCatch(at position: CGPoint, kind: BugKind) {
         guard netNode.parent != nil else { return }
-        let nudge = CGVector(dx: position.x - netNode.position.x, dy: position.y - netNode.position.y)
-        netNode.position.x += nudge.dx * 0.22
-        netNode.position.y += nudge.dy * 0.22
-        netVelocity.dx += nudge.dx * 2.8
-        netVelocity.dy += nudge.dy * 2.8
+
+        if mode == .classic {
+            let nudge = CGVector(dx: position.x - netNode.position.x, dy: position.y - netNode.position.y)
+            netNode.position.x += nudge.dx * 0.22
+            netNode.position.y += nudge.dy * 0.22
+            netVelocity.dx += nudge.dx * 2.8
+            netVelocity.dy += nudge.dy * 2.8
+        }
 
         netSpriteNode.removeAction(forKey: "netAppear")
         netSpriteNode.removeAction(forKey: "netCatch")
+        netSpriteNode.position = .zero
+        let closeScale: CGFloat = kind.isFriendly ? 0.266 : 0.25
+        let reboundScale: CGFloat = kind.isFriendly ? 0.321 : 0.33
         let close = SKAction.group([
-            .scaleX(to: 0.37, duration: 0.045),
-            .scaleY(to: 0.23, duration: 0.045),
+            .scale(to: closeScale, duration: 0.045),
             .colorize(with: kind.feedbackColor, colorBlendFactor: 0.72, duration: 0.025),
         ])
         close.timingMode = .easeOut
         let rebound = SKAction.group([
-            .scaleX(to: 0.275, duration: 0.075),
-            .scaleY(to: 0.345, duration: 0.075),
+            .scale(to: reboundScale, duration: 0.075),
             .colorize(with: GardenPalette.cream, colorBlendFactor: 0.22, duration: 0.075),
         ])
         rebound.timingMode = .easeOut
         let settle = SKAction.group([
-            .scaleX(to: 0.30, duration: 0.10),
-            .scaleY(to: 0.30, duration: 0.10),
+            .scale(to: GameScene.netRestingScale, duration: 0.10),
             .colorize(withColorBlendFactor: 0, duration: 0.10),
         ])
         settle.timingMode = .easeOut
@@ -1181,6 +1447,10 @@ extension GameScene {
         gameLayerNode.speed = 1
         setWorldFrozen(false)
         lastUpdateTime = 0
+        if mode == .survival {
+            previousSurvivalNetCenter = survivalNetCaptureCenter()
+            previousSurvivalNetAxisAngle = survivalCaptureAxisAngle
+        }
         backgroundMusicHeld = false
         resumeBackgroundMusic()
 

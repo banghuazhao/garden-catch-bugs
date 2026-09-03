@@ -25,7 +25,9 @@ class MoreAppsViewController: UIViewController {
             let bannerView = GADBannerView()
             bannerView.adUnitID = Constants.bannerAdUnitID
             bannerView.rootViewController = self
-            bannerView.load(GADRequest())
+            if AdConsent.shared.canRequestAds {
+                bannerView.load(AdConsent.shared.makeRequest())
+            }
             return bannerView
         }()
 
